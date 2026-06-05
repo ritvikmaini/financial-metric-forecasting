@@ -54,6 +54,7 @@ module = [
     "fmf.data.connectors",
     "fmf.data.sql_safety",
     "fmf.data.edgar._http",
+    "fmf.data.edgar.submissions",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
