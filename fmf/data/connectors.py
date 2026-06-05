@@ -65,10 +65,10 @@ def fetch_latest_as_of(
     for col in columns:
         validate_identifier(col)
 
-    col_list = ", ".join(columns)
+    col_list = ", ".join(f'"{c}"' for c in columns)
     query = (
         f"SELECT DISTINCT ON (security_id) {col_list}\n"
-        f"  FROM {table}\n"
+        f'  FROM "{table}"\n'
         f" WHERE security_id = ? AND accepted_date <= ?\n"
         f" ORDER BY security_id, accepted_date DESC, filing_date DESC"
     )
@@ -94,7 +94,7 @@ def bulk_load(
         # with NULL, and errors on unknown columns. Fundamentals ingest carries
         # partial field sets so positional matching would silently misalign
         # (e.g. revenue landing in gross_profit).
-        conn.execute(f"INSERT INTO {table} BY NAME SELECT * FROM _bulk_load_df")
+        conn.execute(f'INSERT INTO "{table}" BY NAME SELECT * FROM _bulk_load_df')
     finally:
         conn.unregister("_bulk_load_df")
     return int(len(df))

@@ -288,3 +288,80 @@ def test_bulk_load_by_name_accepts_column_subset(
     assert row[0] == pytest.approx(400_000_000_000.0)
     assert row[1] is None
     assert row[2] is None
+
+
+class _ExecCapturingConn:
+    """Proxy around a DuckDB connection that records the SQL passed to
+    `execute`. Used by the double-quote-identifier tests because the
+    DuckDB connection itself is a C-extension whose methods cannot be
+    monkeypatched.
+    """
+
+    def __init__(
+        self,
+        inner: duckdb.DuckDBPyConnection,
+        captured: dict[str, str],
+        filter_pred=None,
+    ) -> None:
+        self._inner = inner
+        self._captured = captured
+        self._filter_pred = filter_pred
+
+    def execute(self, query, *args, **kwargs):
+        if self._filter_pred is None or self._filter_pred(query):
+            self._captured["query"] = query
+        return self._inner.execute(query, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+
+def test_fetch_latest_as_of_emits_double_quoted_identifiers(
+    conn: duckdb.DuckDBPyConnection,
+    aapl_filings: None,
+    aapl_id: uuid.UUID,
+) -> None:
+    """fetch_latest_as_of must wrap interpolated identifiers in double
+    quotes. validate_identifier already gates against quote/injection
+    characters, so this is safe for every identifier; it future-proofs
+    reserved-word columns (date, open, close) when prices-derived
+    features hit the connectors in S5.
+    """
+    captured: dict[str, str] = {}
+    wrapped = _ExecCapturingConn(conn, captured)
+    fetch_latest_as_of(
+        conn=wrapped,
+        table="income_statement",
+        security_id=aapl_id,
+        as_of_date=dt.date(2024, 6, 1),
+        columns=["eps_diluted", "revenue"],
+    )
+    q = captured["query"]
+    assert '"income_statement"' in q, f"table not double-quoted in: {q}"
+    assert '"eps_diluted"' in q, f"column not double-quoted in: {q}"
+    assert '"revenue"' in q, f"column not double-quoted in: {q}"
+
+
+def test_bulk_load_emits_double_quoted_table_name(
+    conn: duckdb.DuckDBPyConnection,
+    aapl_id: uuid.UUID,
+) -> None:
+    captured: dict[str, str] = {}
+    wrapped = _ExecCapturingConn(conn, captured, filter_pred=lambda q: "INSERT" in q)
+    df = pd.DataFrame(
+        [
+            {
+                "security_id": str(aapl_id),
+                "date": dt.date(2024, 1, 2),
+                "open": 187.15,
+                "high": 188.44,
+                "low": 183.89,
+                "close": 185.64,
+                "adj_close": 185.30,
+                "volume": 82_488_700,
+            }
+        ]
+    )
+    bulk_load(conn=wrapped, table="prices", df=df)
+    q = captured.get("query", "")
+    assert '"prices"' in q, f"table not double-quoted in INSERT: {q}"
