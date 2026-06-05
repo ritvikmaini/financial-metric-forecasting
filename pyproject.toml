@@ -8,6 +8,7 @@ license = { text = "MIT" }
 authors = [{ name = "Ritvik Maini" }]
 dependencies = [
     "duckdb>=1.0.0",
+    "httpx>=0.28.1",
 ]
 
 [project.optional-dependencies]
@@ -52,6 +53,7 @@ warn_unused_ignores = true
 module = [
     "fmf.data.connectors",
     "fmf.data.sql_safety",
+    "fmf.data.edgar._http",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
