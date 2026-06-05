@@ -1,0 +1,130 @@
+{
+  "cik": "0000320193",
+  "entityName": "Apple Inc.",
+  "tickers": [
+    "AAPL"
+  ],
+  "exchanges": [
+    "Nasdaq"
+  ],
+  "fiscalYearEnd": "0926",
+  "sic": "3571",
+  "sicDescription": "Electronic Computers",
+  "_documentation": "Trimmed AAPL submissions index for test input. Top-level metadata + 5 recent filings (Q1 FY24 10-Q, FY23 10-K, Q3 FY23 10-Q, Q2 FY23 10-Q, Q1 FY23 10-Q). Used as input for the submissions parser in T3.",
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0000320193-24-000006",
+        "0000320193-23-000106",
+        "0000320193-23-000077",
+        "0000320193-23-000064",
+        "0000320193-23-000006"
+      ],
+      "filingDate": [
+        "2024-02-02",
+        "2023-11-03",
+        "2023-08-04",
+        "2023-05-05",
+        "2023-02-03"
+      ],
+      "reportDate": [
+        "2023-12-30",
+        "2023-09-30",
+        "2023-07-01",
+        "2023-04-01",
+        "2022-12-31"
+      ],
+      "acceptanceDateTime": [
+        "2024-02-01T23:03:38.000Z",
+        "2023-11-02T22:08:27.000Z",
+        "2023-08-03T22:04:43.000Z",
+        "2023-05-04T22:03:52.000Z",
+        "2023-02-02T23:01:30.000Z"
+      ],
+      "act": [
+        "34",
+        "34",
+        "34",
+        "34",
+        "34"
+      ],
+      "form": [
+        "10-Q",
+        "10-K",
+        "10-Q",
+        "10-Q",
+        "10-Q"
+      ],
+      "fileNumber": [
+        "001-36743",
+        "001-36743",
+        "001-36743",
+        "001-36743",
+        "001-36743"
+      ],
+      "filmNumber": [
+        "24588164",
+        "231373899",
+        "231141522",
+        "23890444",
+        "23582662"
+      ],
+      "items": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "core_type": [
+        "XBRL",
+        "XBRL",
+        "XBRL",
+        "XBRL",
+        "XBRL"
+      ],
+      "size": [
+        4984121,
+        9569569,
+        5939898,
+        6314786,
+        5915088
+      ],
+      "isXBRL": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "isInlineXBRL": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "isXBRLNumeric": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "primaryDocument": [
+        "aapl-20231230.htm",
+        "aapl-20230930.htm",
+        "aapl-20230701.htm",
+        "aapl-20230401.htm",
+        "aapl-20221231.htm"
+      ],
+      "primaryDocDescription": [
+        "10-Q",
+        "10-K",
+        "10-Q",
+        "10-Q",
+        "10-Q"
+      ]
+    }
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "documentation": "Anchor truth file for the S2 EDGAR-ingest anchor-validation gate. Values are fiscal-2023 figures from each company's 10-K, verified against the SEC company-facts API on 2026-06-06. fiscal_year_end is the date EDGAR uses for the FY 2023 frame. Notable findings from Step 1 verification: (a) AAPL, MSFT, GOOGL, and JNJ all tag revenue under RevenueFromContractWithCustomerExcludingAssessedTax and emit NO FY2023 Revenues fact, exercising the concept-map fallback path. (b) JPM lands in Case A: emits Revenues=158,104,000,000 (matches published total net revenue), so the top-priority resolver works for the bank without concept_map.py modification. (c) JNJ NetIncomeLoss=35,153,000,000 correctly includes the Kenvue separation gain.",
+  "tolerance": {
+    "revenue_usd_pct": 0.005,
+    "net_income_usd_pct": 0.005,
+    "eps_diluted_pct": 0.005,
+    "comment": "0.5% tolerance allows for tiny rounding differences in our unit-scaling path; concept-map mis-resolution will overshoot this by orders of magnitude (e.g. 1e3 or 1e9), surfacing the bug clearly."
+  },
+  "anchors": [
+    {
+      "ticker": "AAPL",
+      "cik": "0000320193",
+      "fiscal_year": 2023,
+      "fiscal_year_end": "2023-09-30",
+      "fp": "FY",
+      "form": "10-K",
+      "revenue_usd": 383285000000,
+      "net_income_usd": 96995000000,
+      "eps_diluted": 6.13,
+      "revenue_concept_expected": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "net_income_concept_expected": "NetIncomeLoss",
+      "source": "AAPL 10-K filed 2023-11-03; SEC company-facts CIK0000320193. Modern Apple tags revenue via the contract-revenue concept and emits NO FY2023 Revenues fact; this anchor exercises the concept-map fallback path."
+    },
+    {
+      "ticker": "MSFT",
+      "cik": "0000789019",
+      "fiscal_year": 2023,
+      "fiscal_year_end": "2023-06-30",
+      "fp": "FY",
+      "form": "10-K",
+      "revenue_usd": 211915000000,
+      "net_income_usd": 72361000000,
+      "eps_diluted": 9.68,
+      "revenue_concept_expected": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "net_income_concept_expected": "NetIncomeLoss",
+      "source": "MSFT 10-K filed 2023-07-27; SEC company-facts CIK0000789019. MSFT, like AAPL, emits no FY2023 Revenues fact and resolves via the contract-revenue fallback concept."
+    },
+    {
+      "ticker": "GOOGL",
+      "cik": "0001652044",
+      "fiscal_year": 2023,
+      "fiscal_year_end": "2023-12-31",
+      "fp": "FY",
+      "form": "10-K",
+      "revenue_usd": 307394000000,
+      "net_income_usd": 73795000000,
+      "eps_diluted": 5.80,
+      "revenue_concept_expected": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "net_income_concept_expected": "NetIncomeLoss",
+      "source": "GOOGL 10-K filed 2024-01-31; SEC company-facts CIK0001652044. GOOGL also emits no FY2023 Revenues fact; revenue resolves via the contract-revenue fallback concept."
+    },
+    {
+      "ticker": "JNJ",
+      "cik": "0000200406",
+      "fiscal_year": 2023,
+      "fiscal_year_end": "2023-12-31",
+      "fp": "FY",
+      "form": "10-K",
+      "revenue_usd": 85159000000,
+      "net_income_usd": 35153000000,
+      "eps_diluted": 13.72,
+      "revenue_concept_expected": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "net_income_concept_expected": "NetIncomeLoss",
+      "source": "JNJ 10-K filed 2024-02-16; SEC company-facts CIK0000200406. JNJ emits no FY2023 Revenues fact; revenue resolves via the contract-revenue fallback. NetIncomeLoss=35,153,000,000 correctly includes the Kenvue separation gain (~$20.9B); the continuing-ops-only ~14B figure is NOT what NetIncomeLoss returns."
+    },
+    {
+      "ticker": "JPM",
+      "cik": "0000019617",
+      "fiscal_year": 2023,
+      "fiscal_year_end": "2023-12-31",
+      "fp": "FY",
+      "form": "10-K",
+      "revenue_usd": 158104000000,
+      "net_income_usd": 49552000000,
+      "eps_diluted": 16.23,
+      "revenue_concept_expected": "Revenues",
+      "net_income_concept_expected": "NetIncomeLoss",
+      "source": "JPM 10-K filed 2024-02-16; SEC company-facts CIK0000019617. Case A: JPM emits a Revenues XBRL fact equal to 158,104,000,000 (matches the published 'total net revenue' figure exactly). The top-priority resolver works for the bank without concept_map.py modification; JPM also emits RevenuesNetOfInterestExpense with the same value as a redundant tag."
+    }
+  ],
+  "comparative_anchor_hints": [
+    {
+      "comment": "Used by tests/data/test_fixture_integrity.py to guard against fiscal_year-from-fy mislabeling (Critical 2). A FY2022 comparative in the FY2023 10-K carries fy=2023; if normalize derives fiscal_year from fy instead of end.year, the 2022 value lands as a FY2023 row and this fixture-integrity test catches it.",
+      "ticker": "AAPL",
+      "fiscal_year": 2022,
+      "fiscal_year_end": "2022-09-24",
+      "revenue_usd": 394328000000,
+      "source": "AAPL FY2022 10-K filed 2022-10-28; comparative in the FY2023 10-K carries fy=2023 with end=2022-09-24."
+    }
+  ],
+  "additional_fixture_tickers": [
+    {"ticker": "ZTS",  "cik": "0001555280", "role": "mid-cap healthcare (Zoetis); has 10+ year filing history since 2013 spinoff"},
+    {"ticker": "GWW",  "cik": "0000277135", "role": "mid-cap industrial (Grainger)"},
+    {"ticker": "HSY",  "cik": "0000047111", "role": "mid-cap consumer staples (Hershey)"},
+    {"ticker": "SNOW", "cik": "0001640147", "role": "short-history ticker (Snowflake, IPO 2020); exercises TiRex fallback chain in S7"}
+  ]
+}

@@ -1,0 +1,223 @@
+{
+  "cik": 19617,
+  "entityName": "JPMORGAN CHASE & CO",
+  "_documentation": "Trimmed JPM companyfacts for test inputs. JPM complements AAPL by exercising the TOP-PRIORITY revenue resolver path: 'Revenues' IS present and equals 158,104,000,000 for FY2023, matching the published 'total net revenue' figure exactly. The concept-map resolver picks 'Revenues' first (Case A) and no concept_map.py modification is needed. NOTE: JPM only emits 'Revenues' in 10-K (annual) filings \u2014 there are no FY2023 10-Q 'Revenues' facts (bank quarterly filings use interest-income + non-interest components instead). NetIncomeLoss and EarningsPerShareDiluted ARE emitted quarterly with both YTD twin (start=2023-01-01) and discrete (start=quarter-start) variants \u2014 preserved here so the duration filter is testable on JPM data too. FY2022 NetIncomeLoss and Revenues each have two filed dates (2023-02-21 from the FY2022 10-K, 2024-02-16 from the FY2023 10-K comparative) for the keep-all-versions test.",
+  "facts": {
+    "us-gaap": {
+      "Revenues": {
+        "label": "Revenues",
+        "description": "Amount of revenue recognized from goods sold, services rendered, insurance premiums, or other activities that constitute an earning process. Includes, but is not limited to, investment and interest income before deduction of interest expense when recognized as a component of revenue, and sales and trading gain (loss).",
+        "units": {
+          "USD": [
+            {
+              "start": "2022-01-01",
+              "end": "2022-12-31",
+              "val": 128695000000,
+              "accn": "0000019617-23-000231",
+              "fy": 2022,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2023-02-21"
+            },
+            {
+              "start": "2022-01-01",
+              "end": "2022-12-31",
+              "val": 128695000000,
+              "accn": "0000019617-24-000225",
+              "fy": 2023,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2024-02-16"
+            },
+            {
+              "start": "2023-01-01",
+              "end": "2023-12-31",
+              "val": 158104000000,
+              "accn": "0000019617-24-000225",
+              "fy": 2023,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2024-02-16"
+            }
+          ]
+        }
+      },
+      "NetIncomeLoss": {
+        "label": "Net Income (Loss) Attributable to Parent",
+        "description": "The portion of profit or loss for the period, net of income taxes, which is attributable to the parent.",
+        "units": {
+          "USD": [
+            {
+              "start": "2022-01-01",
+              "end": "2022-12-31",
+              "val": 37676000000,
+              "accn": "0000019617-23-000231",
+              "fy": 2022,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2023-02-21"
+            },
+            {
+              "start": "2022-01-01",
+              "end": "2022-12-31",
+              "val": 37676000000,
+              "accn": "0000019617-24-000225",
+              "fy": 2023,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2024-02-16"
+            },
+            {
+              "start": "2023-01-01",
+              "end": "2023-03-31",
+              "val": 12622000000,
+              "accn": "0000019617-23-000310",
+              "fy": 2023,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2023-05-03"
+            },
+            {
+              "start": "2023-01-01",
+              "end": "2023-06-30",
+              "val": 27094000000,
+              "accn": "0000019617-23-000432",
+              "fy": 2023,
+              "fp": "Q2",
+              "form": "10-Q",
+              "filed": "2023-08-03"
+            },
+            {
+              "start": "2023-04-01",
+              "end": "2023-06-30",
+              "val": 14472000000,
+              "accn": "0000019617-23-000432",
+              "fy": 2023,
+              "fp": "Q2",
+              "form": "10-Q",
+              "filed": "2023-08-03"
+            },
+            {
+              "start": "2023-01-01",
+              "end": "2023-09-30",
+              "val": 40245000000,
+              "accn": "0000019617-23-000524",
+              "fy": 2023,
+              "fp": "Q3",
+              "form": "10-Q",
+              "filed": "2023-11-01"
+            },
+            {
+              "start": "2023-07-01",
+              "end": "2023-09-30",
+              "val": 13151000000,
+              "accn": "0000019617-23-000524",
+              "fy": 2023,
+              "fp": "Q3",
+              "form": "10-Q",
+              "filed": "2023-11-01"
+            },
+            {
+              "start": "2023-01-01",
+              "end": "2023-12-31",
+              "val": 49552000000,
+              "accn": "0000019617-24-000225",
+              "fy": 2023,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2024-02-16"
+            }
+          ]
+        }
+      },
+      "EarningsPerShareDiluted": {
+        "label": "Earnings Per Share, Diluted",
+        "description": "The amount of net income (loss) for the period available to each share of common stock or common unit outstanding during the reporting period and to each share or unit that would have been outstanding assuming the issuance of common shares or units for all dilutive potential common shares or units outstanding during the reporting period.",
+        "units": {
+          "USD/shares": [
+            {
+              "start": "2022-01-01",
+              "end": "2022-12-31",
+              "val": 12.09,
+              "accn": "0000019617-23-000231",
+              "fy": 2022,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2023-02-21"
+            },
+            {
+              "start": "2022-01-01",
+              "end": "2022-12-31",
+              "val": 12.09,
+              "accn": "0000019617-24-000225",
+              "fy": 2023,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2024-02-16"
+            },
+            {
+              "start": "2023-01-01",
+              "end": "2023-03-31",
+              "val": 4.1,
+              "accn": "0000019617-23-000310",
+              "fy": 2023,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2023-05-03"
+            },
+            {
+              "start": "2023-01-01",
+              "end": "2023-06-30",
+              "val": 8.85,
+              "accn": "0000019617-23-000432",
+              "fy": 2023,
+              "fp": "Q2",
+              "form": "10-Q",
+              "filed": "2023-08-03"
+            },
+            {
+              "start": "2023-04-01",
+              "end": "2023-06-30",
+              "val": 4.75,
+              "accn": "0000019617-23-000432",
+              "fy": 2023,
+              "fp": "Q2",
+              "form": "10-Q",
+              "filed": "2023-08-03"
+            },
+            {
+              "start": "2023-01-01",
+              "end": "2023-09-30",
+              "val": 13.18,
+              "accn": "0000019617-23-000524",
+              "fy": 2023,
+              "fp": "Q3",
+              "form": "10-Q",
+              "filed": "2023-11-01"
+            },
+            {
+              "start": "2023-07-01",
+              "end": "2023-09-30",
+              "val": 4.33,
+              "accn": "0000019617-23-000524",
+              "fy": 2023,
+              "fp": "Q3",
+              "form": "10-Q",
+              "filed": "2023-11-01"
+            },
+            {
+              "start": "2023-01-01",
+              "end": "2023-12-31",
+              "val": 16.23,
+              "accn": "0000019617-24-000225",
+              "fy": 2023,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2024-02-16"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
