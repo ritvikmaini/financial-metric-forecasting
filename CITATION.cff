@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+title: "fmf-public: Financial Metrics Forecasting on Public Data"
+authors:
+  - family-names: Maini
+    given-names: Ritvik
+date-released: 2026-06-05
+license: MIT
+keywords:
+  - "earnings forecasting"
+  - "ensemble methods"
+  - "expanding-window backtest"
+  - "point-in-time fundamentals"
+  - "SEC EDGAR XBRL"
+abstract: >
+  Reproducible research repo applying an ensemble-forecasting methodology
+  (LightGBM + TiRex zero-shot + simplex-blender MetaLearner) to SEC EDGAR
+  fundamentals and yfinance prices. Methodology originally designed on
+  proprietary data; reproduced here on a public-data substrate with full
+  point-in-time correctness, noise-floor measurement, admission-gated
+  alternative models, and a falsification-friendly research apparatus.

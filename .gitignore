@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Tooling
+.DS_Store
+.env
+
+# uv
+# uv.lock is checked in; .venv is not
+
+# Real data (never tracked)
+data/*.duckdb
+data/raw/
+data/edgar/cache/
+data/yfinance/cache/
+
+# Reports (mostly gitignored; specific paths re-included)
+reports/*
+!reports/figures/
+!reports/figures/.gitkeep
+!reports/scoreboard_snapshots/
+!reports/scoreboard_snapshots/.gitkeep
+!reports/noise_floor.json
+
+# Editor
+.idea/
+.vscode/
+*.swp
