@@ -57,6 +57,7 @@ module = [
     "fmf.data.edgar.submissions",
     "fmf.data.edgar.companyfacts",
     "fmf.data.edgar.concept_map",
+    "fmf.data.edgar.normalize",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
