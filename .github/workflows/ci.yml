@@ -1,0 +1,96 @@
+name: ci
+
+on:
+  push:
+    branches: [main, "s*/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --extra dev
+      - name: ruff check
+        run: uv run ruff check .
+      - name: ruff format
+        run: uv run ruff format --check .
+
+  mypy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --extra dev
+      - name: mypy
+        run: uv run mypy fmf/
+
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --extra dev
+      - name: pytest (unit)
+        run: uv run pytest tests/ -m "not slow and not live" -v
+
+  e2e-backtester:
+    # Stubbed until S10 lands the backtester. CI must stay green at HEAD.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: stub (no backtester yet)
+        run: |
+          echo "e2e-backtester is a stub until S10 lands."
+          exit 0
+
+  notebook-smoke:
+    # Stub until S19 (dead-CV flagship) introduces the first notebook.
+    # The session that lands the first .ipynb is responsible for replacing
+    # this stub with a real nbclient runner in the same PR; otherwise the
+    # tripwire below makes S19 unmergeable.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: stub (no notebooks yet)
+        run: |
+          if find notebooks -type f -name "*.ipynb" 2>/dev/null | grep -q .; then
+            echo "notebooks exist — this stub must be replaced by an nbclient runner in the same PR that introduces the first notebook (S19)"
+            exit 1
+          else
+            echo "no notebooks yet; stub passing"
+            exit 0
+          fi
+
+  readme-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: figure-presence check (stubbed)
+        run: |
+          # Once README embeds figures (S6, S11, S14, S18), this job will
+          # parse the README for image refs and assert each file exists in
+          # reports/figures/. Today there are none, so this is a stub.
+          echo "no embedded figures yet; stub passing"
+          exit 0
+      - name: markdown link check (stubbed)
+        run: |
+          echo "no docs yet beyond README v0; stub passing"
+          exit 0
