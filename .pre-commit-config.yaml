@@ -1,0 +1,52 @@
+# Per spec §7.5: ruff, mypy (changed files only), trailing-whitespace,
+# large-file check, detect-secrets, nbstripout with exemptions.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ["--maxkb=2048"]
+      - id: check-merge-conflict
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # Local mypy hook (not mirrors-mypy) so the hook and CI mypy run in the
+  # same uv-synced env. Avoids "green locally, red in CI" drift when fmf/
+  # gains new deps (pandas in S1, lightgbm in S6, etc.).
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types: [python]
+        files: ^fmf/
+        pass_filenames: false
+        args: ["fmf/"]
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.7.1
+    hooks:
+      - id: nbstripout
+        # Spec §7.5: exempt notebooks/eda/* and the two flagship notebooks
+        exclude: |
+          (?x)^(
+            notebooks/eda/.* |
+            notebooks/dead_cv_bug\.ipynb |
+            notebooks/cv_leakage_falsification\.ipynb
+          )$
