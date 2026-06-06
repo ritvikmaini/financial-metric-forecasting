@@ -63,6 +63,7 @@ module = [
     "fmf.features.audit.coverage",
     "fmf.features.audit.sources",
     "fmf.data.yfinance._client",
+    "fmf.data.yfinance.prices",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
