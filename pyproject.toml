@@ -67,6 +67,7 @@ module = [
     "fmf.data.yfinance.consensus",
     "fmf.data.yfinance.securities",
     "fmf.features.point_in_time",
+    "fmf.features.derived",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
