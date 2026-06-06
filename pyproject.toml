@@ -70,6 +70,7 @@ module = [
     "fmf.features.derived",
     "fmf.features.feature_registry",
     "fmf.features.builtin_features",
+    "scripts.coverage_audit",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true

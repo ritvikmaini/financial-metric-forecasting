@@ -1,0 +1,420 @@
+{
+  "total_samples": 146,
+  "feature_count": 59,
+  "warnings": [],
+  "features": {
+    "revenue_latest": {
+      "coverage_pct": 1.0,
+      "min_required": 0.85,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "net_income_latest": {
+      "coverage_pct": 1.0,
+      "min_required": 0.95,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "ebit_latest": {
+      "coverage_pct": 0.9384,
+      "min_required": 0.85,
+      "experimental": false,
+      "filled": 137,
+      "total_samples": 146
+    },
+    "gross_profit_latest": {
+      "coverage_pct": 0.6301,
+      "min_required": 0.55,
+      "experimental": true,
+      "filled": 92,
+      "total_samples": 146
+    },
+    "eps_diluted_latest": {
+      "coverage_pct": 0.9932,
+      "min_required": 0.65,
+      "experimental": false,
+      "filled": 145,
+      "total_samples": 146
+    },
+    "total_assets_latest": {
+      "coverage_pct": 1.0,
+      "min_required": 0.85,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "total_equity_latest": {
+      "coverage_pct": 1.0,
+      "min_required": 0.9,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "cash_and_equivalents_latest": {
+      "coverage_pct": 0.9384,
+      "min_required": 0.75,
+      "experimental": false,
+      "filled": 137,
+      "total_samples": 146
+    },
+    "current_assets_latest": {
+      "coverage_pct": 0.8699,
+      "min_required": 0.7,
+      "experimental": false,
+      "filled": 127,
+      "total_samples": 146
+    },
+    "current_liabilities_latest": {
+      "coverage_pct": 0.8699,
+      "min_required": 0.7,
+      "experimental": false,
+      "filled": 127,
+      "total_samples": 146
+    },
+    "long_term_debt_latest": {
+      "coverage_pct": 0.911,
+      "min_required": 0.65,
+      "experimental": false,
+      "filled": 133,
+      "total_samples": 146
+    },
+    "operating_cf_latest": {
+      "coverage_pct": 1.0,
+      "min_required": 0.8,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "investing_cf_latest": {
+      "coverage_pct": 1.0,
+      "min_required": 0.8,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "financing_cf_latest": {
+      "coverage_pct": 0.9795,
+      "min_required": 0.8,
+      "experimental": false,
+      "filled": 143,
+      "total_samples": 146
+    },
+    "capex_latest": {
+      "coverage_pct": 0.8288,
+      "min_required": 0.8,
+      "experimental": false,
+      "filled": 121,
+      "total_samples": 146
+    },
+    "close_latest": {
+      "coverage_pct": 1.0,
+      "min_required": 0.95,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "return_1m": {
+      "coverage_pct": 0.9932,
+      "min_required": 0.9,
+      "experimental": false,
+      "filled": 145,
+      "total_samples": 146
+    },
+    "return_3m": {
+      "coverage_pct": 0.9658,
+      "min_required": 0.85,
+      "experimental": false,
+      "filled": 141,
+      "total_samples": 146
+    },
+    "return_6m": {
+      "coverage_pct": 0.9658,
+      "min_required": 0.8,
+      "experimental": false,
+      "filled": 141,
+      "total_samples": 146
+    },
+    "return_12m": {
+      "coverage_pct": 0.9452,
+      "min_required": 0.75,
+      "experimental": false,
+      "filled": 138,
+      "total_samples": 146
+    },
+    "volatility_30d": {
+      "coverage_pct": 0.9932,
+      "min_required": 0.85,
+      "experimental": false,
+      "filled": 145,
+      "total_samples": 146
+    },
+    "volatility_90d": {
+      "coverage_pct": 0.9658,
+      "min_required": 0.8,
+      "experimental": false,
+      "filled": 141,
+      "total_samples": 146
+    },
+    "max_drawdown_1y": {
+      "coverage_pct": 1.0,
+      "min_required": 0.75,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "sector_energy": {
+      "coverage_pct": 1.0,
+      "min_required": 0.95,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "sector_materials": {
+      "coverage_pct": 1.0,
+      "min_required": 0.95,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "sector_industrials": {
+      "coverage_pct": 1.0,
+      "min_required": 0.95,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "sector_consumer_discretionary": {
+      "coverage_pct": 1.0,
+      "min_required": 0.95,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "sector_consumer_defensive": {
+      "coverage_pct": 1.0,
+      "min_required": 0.95,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "sector_healthcare": {
+      "coverage_pct": 1.0,
+      "min_required": 0.95,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "sector_financial_services": {
+      "coverage_pct": 1.0,
+      "min_required": 0.95,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "sector_technology": {
+      "coverage_pct": 1.0,
+      "min_required": 0.95,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "sector_communication_services": {
+      "coverage_pct": 1.0,
+      "min_required": 0.95,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "sector_utilities": {
+      "coverage_pct": 1.0,
+      "min_required": 0.95,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "sector_real_estate": {
+      "coverage_pct": 1.0,
+      "min_required": 0.95,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "revenue_ttm": {
+      "coverage_pct": 1.0,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "net_income_ttm": {
+      "coverage_pct": 1.0,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "ebit_ttm": {
+      "coverage_pct": 0.911,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 133,
+      "total_samples": 146
+    },
+    "gross_profit_ttm": {
+      "coverage_pct": 0.6301,
+      "min_required": 0.5,
+      "experimental": true,
+      "filled": 92,
+      "total_samples": 146
+    },
+    "revenue_yoy": {
+      "coverage_pct": 1.0,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "net_income_yoy": {
+      "coverage_pct": 1.0,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "ebit_yoy": {
+      "coverage_pct": 0.9384,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 137,
+      "total_samples": 146
+    },
+    "eps_yoy": {
+      "coverage_pct": 0.863,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 126,
+      "total_samples": 146
+    },
+    "gross_margin": {
+      "coverage_pct": 0.6301,
+      "min_required": 0.5,
+      "experimental": true,
+      "filled": 92,
+      "total_samples": 146
+    },
+    "ebit_margin": {
+      "coverage_pct": 0.9384,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 137,
+      "total_samples": 146
+    },
+    "net_margin": {
+      "coverage_pct": 1.0,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "total_liabilities_latest": {
+      "coverage_pct": 1.0,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "equity_to_assets": {
+      "coverage_pct": 1.0,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "liabilities_to_assets": {
+      "coverage_pct": 1.0,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "current_ratio": {
+      "coverage_pct": 0.8699,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 127,
+      "total_samples": 146
+    },
+    "debt_to_equity": {
+      "coverage_pct": 0.911,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 133,
+      "total_samples": 146
+    },
+    "debt_to_assets": {
+      "coverage_pct": 0.911,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 133,
+      "total_samples": 146
+    },
+    "fcf_latest": {
+      "coverage_pct": 0.8288,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 121,
+      "total_samples": 146
+    },
+    "operating_cf_ttm": {
+      "coverage_pct": 0.9452,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 138,
+      "total_samples": 146
+    },
+    "capex_ttm": {
+      "coverage_pct": 0.8219,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 120,
+      "total_samples": 146
+    },
+    "fcf_ttm": {
+      "coverage_pct": 0.774,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 113,
+      "total_samples": 146
+    },
+    "return_on_assets": {
+      "coverage_pct": 1.0,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "return_on_equity": {
+      "coverage_pct": 1.0,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 146,
+      "total_samples": 146
+    },
+    "return_on_invested_capital": {
+      "coverage_pct": 0.911,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 133,
+      "total_samples": 146
+    },
+    "pe_ratio_ttm": {
+      "coverage_pct": 0.8425,
+      "min_required": 0.5,
+      "experimental": false,
+      "filled": 123,
+      "total_samples": 146
+    }
+  }
+}

@@ -29,6 +29,7 @@ reports/*
 !reports/scoreboard_snapshots/
 !reports/scoreboard_snapshots/.gitkeep
 !reports/noise_floor.json
+!reports/coverage_audit.json
 
 # Editor
 .idea/
