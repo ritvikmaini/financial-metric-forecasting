@@ -50,6 +50,6 @@ def test_anchor_tickers_have_high_revenue_coverage() -> None:
         conn.close()
     anchors = df[df["symbol"].isin(["AAPL", "MSFT", "GOOGL", "JNJ", "JPM"])]
     median_by_symbol = anchors.groupby("symbol")["coverage_pct"].median()
-    assert (
-        median_by_symbol > 0.3
-    ).all(), f"unexpectedly low median coverage on anchors:\n{median_by_symbol}"
+    assert (median_by_symbol > 0.3).all(), (
+        f"unexpectedly low median coverage on anchors:\n{median_by_symbol}"
+    )

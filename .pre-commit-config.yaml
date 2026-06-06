@@ -12,12 +12,23 @@ repos:
         args: ["--maxkb=8192"]
       - id: check-merge-conflict
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+  # Local ruff hooks (not ruff-pre-commit) so the hook and CI ruff run in
+  # the same uv-synced env. Avoids "passes locally, fails in CI" drift
+  # when ruff version moves.
+  - repo: local
     hooks:
       - id: ruff
-        args: [--fix]
+        name: ruff
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+        pass_filenames: true
       - id: ruff-format
+        name: ruff-format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+        pass_filenames: true
 
   # Local mypy hook (not mirrors-mypy) so the hook and CI mypy run in the
   # same uv-synced env. Avoids "green locally, red in CI" drift when fmf/

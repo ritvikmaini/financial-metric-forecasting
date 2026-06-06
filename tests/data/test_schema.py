@@ -140,9 +140,9 @@ def test_income_statement_primary_key_includes_accepted_date_and_end_date(
     ).fetchall()
     assert rows, "income_statement has no PRIMARY KEY constraint"
     pk_cols = set(rows[0][0])
-    assert (
-        "accepted_date" in pk_cols
-    ), f"income_statement PK missing accepted_date. Found: {pk_cols}"
-    assert (
-        "end_date" in pk_cols
-    ), f"income_statement PK missing end_date — schema amendment not applied. Found: {pk_cols}"
+    assert "accepted_date" in pk_cols, (
+        f"income_statement PK missing accepted_date. Found: {pk_cols}"
+    )
+    assert "end_date" in pk_cols, (
+        f"income_statement PK missing end_date — schema amendment not applied. Found: {pk_cols}"
+    )

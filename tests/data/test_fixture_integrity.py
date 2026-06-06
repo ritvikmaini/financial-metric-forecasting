@@ -60,9 +60,9 @@ def test_aapl_fy2022_revenue_resolves_correctly() -> None:
         ).fetchone()
     finally:
         conn.close()
-    assert (
-        row is not None and row[0] is not None
-    ), "AAPL FY2022 revenue missing from fixture; check normalize fiscal_year derivation."
+    assert row is not None and row[0] is not None, (
+        "AAPL FY2022 revenue missing from fixture; check normalize fiscal_year derivation."
+    )
     expected = 394_328_000_000.0
     rel_err = abs(row[0] - expected) / expected
     assert rel_err < 0.01, (

@@ -407,9 +407,9 @@ def test_instant_fact_at_fy_end_labeled_fy_period() -> None:
     bs = out.balance_sheet
     bs2009 = bs[bs["fiscal_year"] == 2009]
     assert len(bs2009) == 1
-    assert (
-        bs2009.iloc[0]["period"] == "FY"
-    ), f"Instant BS at FY-end must be labeled period=FY, got {bs2009.iloc[0]['period']}"
+    assert bs2009.iloc[0]["period"] == "FY", (
+        f"Instant BS at FY-end must be labeled period=FY, got {bs2009.iloc[0]['period']}"
+    )
     assert bs2009.iloc[0]["end_date"] == dt.date(2009, 9, 26)
     assert bs2009.iloc[0]["total_assets"] == pytest.approx(47_501_000_000.0)
 
