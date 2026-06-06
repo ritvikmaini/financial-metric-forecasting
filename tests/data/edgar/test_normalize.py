@@ -739,3 +739,219 @@ def test_q4_fixture_regression_emits_at_fy_filing(ticker: str, fy: int) -> None:
         )
     finally:
         conn.close()
+
+
+# --- L-INFRA-013 regression: derive_q4_rows must break accepted_date ties
+# by latest end_date, not by stable-sort input order. The Q3 10-Q's
+# comparative facts inherit fp=Q3 (the filing's frame) and land in the
+# (fy, Q3) bucket alongside the genuine discrete Q3. They share the Q3
+# 10-Q's accepted_date. Pre-fix, derive_q4_rows sorts by accepted_date
+# alone; ties resolve via stable-sort input order, often selecting a
+# phantom null-revenue row as available[-1]. ---
+
+
+@pytest.mark.parametrize(
+    "label, fy_end, fy_filed, q_ends, q_filings, q_values, fy_revenue, expected_q4",
+    [
+        (
+            "AAPL_FY2015",
+            dt.date(2015, 9, 26),
+            dt.date(2015, 10, 28),
+            [
+                dt.date(2014, 12, 27),
+                dt.date(2015, 3, 28),
+                dt.date(2015, 6, 27),
+            ],
+            [
+                dt.date(2015, 1, 28),
+                dt.date(2015, 4, 28),
+                dt.date(2015, 7, 22),
+            ],
+            [
+                74_599_000_000.0,
+                58_010_000_000.0,
+                49_605_000_000.0,
+            ],
+            233_715_000_000.0,
+            51_501_000_000.0,
+        ),
+        (
+            "MSFT_FY2020",
+            dt.date(2020, 6, 30),
+            dt.date(2020, 7, 30),
+            [
+                dt.date(2019, 9, 30),
+                dt.date(2019, 12, 31),
+                dt.date(2020, 3, 31),
+            ],
+            [
+                dt.date(2019, 10, 23),
+                dt.date(2020, 1, 29),
+                dt.date(2020, 4, 29),
+            ],
+            [
+                22_000_000_000.0,
+                27_000_000_000.0,
+                23_000_000_000.0,
+            ],
+            100_000_000_000.0,
+            28_000_000_000.0,
+        ),
+        (
+            "JNJ_FY_ending_2021_01_03",
+            dt.date(2021, 1, 3),
+            dt.date(2021, 2, 22),
+            [
+                dt.date(2020, 3, 29),
+                dt.date(2020, 6, 28),
+                dt.date(2020, 9, 27),
+            ],
+            [
+                dt.date(2020, 4, 28),
+                dt.date(2020, 7, 21),
+                dt.date(2020, 10, 20),
+            ],
+            [
+                20_700_000_000.0,
+                18_300_000_000.0,
+                21_100_000_000.0,
+            ],
+            82_584_000_000.0,
+            22_484_000_000.0,
+        ),
+    ],
+    ids=lambda v: v if isinstance(v, str) else "",
+)
+def test_q4_derive_picks_latest_end_among_accepted_date_ties(
+    label: str,
+    fy_end: dt.date,
+    fy_filed: dt.date,
+    q_ends: list[dt.date],
+    q_filings: list[dt.date],
+    q_values: list[float],
+    fy_revenue: float,
+    expected_q4: float,
+) -> None:
+    """L-INFRA-013 regression: derive_q4_rows must break accepted_date
+    ties by latest end_date, not by stable-sort input order.
+
+    The Q3 10-Q's comparative facts inherit fp=Q3 (the filing's frame)
+    and land in the (fy, Q3) bucket alongside the genuine discrete Q3.
+    They share the Q3 10-Q's accepted_date. Pre-fix, derive_q4_rows
+    sorts by accepted_date alone; ties resolve via stable-sort input
+    order, often selecting a phantom null-revenue row as available[-1].
+    Q4 then emits with revenue=None (assuming any_derived=True via
+    another field that does derive — net_income, in this test setup).
+
+    Fix: sort by (accepted_date, end_date). Latest-end wins among ties.
+    Phantom rows are intra-fiscal-year EARLIER periods and always have
+    earlier ends than the genuine Q3; the genuine row carries all
+    fields populated, so latest-end corrects every derived field at
+    once.
+
+    Scenario per parametrization:
+    (a) discrete Q1/Q2/Q3 facts from each quarter's own 10-Q seeded
+        with BOTH revenue AND net_income, so derive_q4_rows has a
+        complete non-null chain on net_income even when the phantom
+        wins Q3 for revenue. This triggers any_derived=True and Q4
+        emits — with revenue=None because the phantom Q3 row's
+        revenue is null. Without the net_income seeding, Q4 wouldn't
+        emit pre-fix and the test would fail with "Q4 missing"
+        instead of "Q4 revenue is None".
+    (b) genuine annual revenue AND net_income from the FY 10-K.
+    (c) phantom rows in the (fy, Q3) bucket: NetIncomeLoss at the Q1
+        and Q2 ENDS tagged fp=Q3 (the Q3 10-Q's frame). Null revenue,
+        non-null net_income. Appended AFTER the discrete Q3 so
+        stable-sort places them last, triggering the bug pre-fix.
+    """
+    security_id = uuid.uuid5(uuid.NAMESPACE_DNS, label)
+    facts: list[Fact] = []
+
+    discrete_q_ni = 1_000_000_000.0
+    phantom_ni = 2_000_000_000.0
+    fy_ni = 10_000_000_000.0
+
+    # (a) Discrete Q1/Q2/Q3 — revenue + net_income.
+    quarter_names = ("Q1", "Q2", "Q3")
+    for q_end, q_filed, q_val, q_name in zip(
+        q_ends, q_filings, q_values, quarter_names, strict=True
+    ):
+        facts.append(
+            _q_fact(
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                end=q_end,
+                filed=q_filed,
+                value=q_val,
+                fp=q_name,
+            )
+        )
+        facts.append(
+            _q_fact(
+                "NetIncomeLoss",
+                end=q_end,
+                filed=q_filed,
+                value=discrete_q_ni,
+                fp=q_name,
+            )
+        )
+
+    # (b) Genuine annual revenue + net_income.
+    facts.append(
+        _fy_fact(
+            "RevenueFromContractWithCustomerExcludingAssessedTax",
+            end=fy_end,
+            filed=fy_filed,
+            value=fy_revenue,
+            start=fy_end - dt.timedelta(days=364),
+        )
+    )
+    facts.append(
+        _fy_fact(
+            "NetIncomeLoss",
+            end=fy_end,
+            filed=fy_filed,
+            value=fy_ni,
+            start=fy_end - dt.timedelta(days=364),
+        )
+    )
+
+    # (c) Phantom rows in the (fy, Q3) bucket from the fp-frame-leak.
+    q3_filed = q_filings[2]
+    for q_end in q_ends[:2]:
+        facts.append(
+            _q_fact(
+                "NetIncomeLoss",
+                end=q_end,
+                filed=q3_filed,
+                value=phantom_ni,
+                fp="Q3",
+            )
+        )
+
+    out = normalize_to_tables(facts=facts, security_id=security_id)
+    inc = out.income_statement
+    target_fy = fy_end.year
+
+    # Setup invariant: ≥3 rows in the (fy, Q3) bucket post-normalize.
+    q3_rows = inc[(inc["fiscal_year"] == target_fy) & (inc["period"] == "Q3")]
+    assert len(q3_rows) >= 3, (
+        f"{label}: test setup invariant violated — expected ≥3 Q3 rows "
+        f"from the fp-frame-leak, got {len(q3_rows)}."
+    )
+
+    # Q4 must derive at FY filing date with the genuine Q3 winning.
+    q4_rows = inc[(inc["fiscal_year"] == target_fy) & (inc["period"] == "Q4")]
+    assert len(q4_rows) >= 1, f"{label}: Q4 missing for fiscal_year={target_fy}."
+    q4_at_fy = q4_rows[q4_rows["accepted_date"] == fy_filed]
+    assert len(q4_at_fy) >= 1, (
+        f"{label}: no Q4 row at FY filing date {fy_filed}; Q4 is year-lagged."
+    )
+    q4_revenue = q4_at_fy.iloc[0]["revenue"]
+    assert q4_revenue is not None and not pd.isna(q4_revenue), (
+        f"{label}: Q4 revenue is None at FY filing date {fy_filed}. "
+        f"derive_q4_rows picked a phantom Q3 row with null revenue; "
+        f"the (accepted_date, end_date) tie-breaker is not applied."
+    )
+    assert q4_revenue == pytest.approx(expected_q4, rel=0.001), (
+        f"{label}: Q4 revenue {q4_revenue} != FY-Q1-Q2-Q3={expected_q4}."
+    )
