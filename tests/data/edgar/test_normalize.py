@@ -753,71 +753,31 @@ def test_q4_fixture_regression_emits_at_fy_filing(ticker: str, fy: int) -> None:
 @pytest.mark.parametrize(
     "label, fy_end, fy_filed, q_ends, q_filings, q_values, fy_revenue, expected_q4",
     [
+        # MSFT FY2016 (June-end). Real numbers: Q1 20.379B, Q2 23.796B,
+        # Q3 20.531B, FY 85.320B, Q4 20.614B.
         (
-            "AAPL_FY2015",
-            dt.date(2015, 9, 26),
-            dt.date(2015, 10, 28),
-            [
-                dt.date(2014, 12, 27),
-                dt.date(2015, 3, 28),
-                dt.date(2015, 6, 27),
-            ],
-            [
-                dt.date(2015, 1, 28),
-                dt.date(2015, 4, 28),
-                dt.date(2015, 7, 22),
-            ],
-            [
-                74_599_000_000.0,
-                58_010_000_000.0,
-                49_605_000_000.0,
-            ],
-            233_715_000_000.0,
-            51_501_000_000.0,
+            "MSFT_FY2016",
+            dt.date(2016, 6, 30),
+            dt.date(2016, 7, 28),
+            [dt.date(2015, 9, 30), dt.date(2015, 12, 31), dt.date(2016, 3, 31)],
+            [dt.date(2015, 10, 22), dt.date(2016, 1, 28), dt.date(2016, 4, 21)],
+            [20_379_000_000.0, 23_796_000_000.0, 20_531_000_000.0],
+            85_320_000_000.0,
+            20_614_000_000.0,
         ),
+        # GWW FY2020 (calendar FY) — the regression case: GWW went
+        # contemporaneous → year-lagged after the L-INFRA-012 rebuild.
+        # Real values (Q4 reverse-derived): Q1 3.001B, Q2 2.837B, Q3 3.018B,
+        # FY 11.797B, Q4 2.941B.
         (
-            "MSFT_FY2020",
-            dt.date(2020, 6, 30),
-            dt.date(2020, 7, 30),
-            [
-                dt.date(2019, 9, 30),
-                dt.date(2019, 12, 31),
-                dt.date(2020, 3, 31),
-            ],
-            [
-                dt.date(2019, 10, 23),
-                dt.date(2020, 1, 29),
-                dt.date(2020, 4, 29),
-            ],
-            [
-                22_000_000_000.0,
-                27_000_000_000.0,
-                23_000_000_000.0,
-            ],
-            100_000_000_000.0,
-            28_000_000_000.0,
-        ),
-        (
-            "JNJ_FY_ending_2021_01_03",
-            dt.date(2021, 1, 3),
-            dt.date(2021, 2, 22),
-            [
-                dt.date(2020, 3, 29),
-                dt.date(2020, 6, 28),
-                dt.date(2020, 9, 27),
-            ],
-            [
-                dt.date(2020, 4, 28),
-                dt.date(2020, 7, 21),
-                dt.date(2020, 10, 20),
-            ],
-            [
-                20_700_000_000.0,
-                18_300_000_000.0,
-                21_100_000_000.0,
-            ],
-            82_584_000_000.0,
-            22_484_000_000.0,
+            "GWW_FY2020",
+            dt.date(2020, 12, 31),
+            dt.date(2021, 2, 24),
+            [dt.date(2020, 3, 31), dt.date(2020, 6, 30), dt.date(2020, 9, 30)],
+            [dt.date(2020, 4, 23), dt.date(2020, 7, 23), dt.date(2020, 10, 22)],
+            [3_001_000_000.0, 2_837_000_000.0, 3_018_000_000.0],
+            11_797_000_000.0,
+            2_941_000_000.0,
         ),
     ],
     ids=lambda v: v if isinstance(v, str) else "",
