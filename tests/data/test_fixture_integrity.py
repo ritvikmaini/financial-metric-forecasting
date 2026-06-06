@@ -69,3 +69,46 @@ def test_aapl_fy2022_revenue_resolves_correctly() -> None:
         f"AAPL FY2022 revenue: got {row[0]!r}, expected ~{expected}. "
         f"Regression: check normalize FY-end-aware derivation."
     )
+
+
+def test_aapl_pre_2014_close_reflects_multi_split_un_apply() -> None:
+    """AAPL had two splits in the fixture window: 7:1 on 2014-06-09 and
+    4:1 on 2020-08-31. Pre-2014 rows must be un-applied by BOTH (cumulative
+    factor 28). The existing 2019-06-03 test only exercises the 4:1; this
+    test locks the multi-split compounding by asserting the 2010-12-31
+    close lands in the historical few-hundreds range.
+
+    Reference: AAPL's actual unadjusted close on 2010-12-31 was ~$322.56.
+    Post-both-splits, back-adjusted is ~$11.52. The un-split transform
+    should put close back near the unadjusted value.
+    """
+    import datetime as dt
+
+    conn = duckdb.connect(str(FIXTURE), read_only=True)
+    try:
+        row = conn.execute(
+            'SELECT close, adj_close FROM "prices" p '
+            'JOIN "securities" s ON s.security_id = p.security_id '
+            'WHERE s.symbol = ? AND "date" = ?',
+            ["AAPL", dt.date(2010, 12, 31)],
+        ).fetchone()
+    finally:
+        conn.close()
+    assert row is not None, "AAPL 2010-12-31 missing from fixture"
+    close, adj_close = row
+    # Reasonable bounds for the actual unadjusted price.
+    assert close > 250, (
+        f"AAPL 2010-12-31 close={close} too low. Multi-split compounding "
+        f"may have failed: 2014 7:1 + 2020 4:1 should give a x28 cumulative "
+        f"factor. Post-both-splits back-adjusted is ~$11."
+    )
+    assert close < 400, (
+        f"AAPL 2010-12-31 close={close} too high. Verify against historical "
+        f"reference (actual ~$322.56)."
+    )
+    # Sanity: close > 20× adj_close (since ratio after both splits should
+    # be close to 28).
+    assert close > adj_close * 20, (
+        f"close={close} adj_close={adj_close} ratio={close / adj_close:.2f} "
+        f"— expected ratio near 28 for pre-2014 dates"
+    )
