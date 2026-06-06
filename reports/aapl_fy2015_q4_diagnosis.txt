@@ -171,3 +171,8 @@ the per-quarter pieces — e.g., only collect ends from facts whose
 the company's fiscal year does NOT align with the calendar year (which a
 secondary inference from Q3-end + ~91d would surface). This is out of scope
 for T3a.
+
+---
+## Closing note (post-fix)
+
+Landed by commit `f2d1e28` (the `_compute_fy_end_dates` duration+start gate). Confirmed by `tests/data/edgar/test_normalize.py::test_q4_derives_at_fy_filing_for_non_calendar_fy` (parametrization `AAPL_FY2015`). The rebuilt fixture now surfaces AAPL Q4 FY2015 with accepted_date 2015-10-28 (the FY2015 10-K filing date). See L-INFRA-012 in `docs/knowledge/learnings.md`.
