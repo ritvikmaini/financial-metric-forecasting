@@ -1,0 +1,246 @@
+=== balance-sheet concept probe (live EDGAR) ===
+Base URL: https://data.sec.gov
+User-Agent: fmf-public research mainiritvik@gmail.com
+Throttle: max_rps=8 (>= 125 ms interval)
+
+--- AAPL (CIK 0000320193) ---
+  total us-gaap concepts: 503
+
+  [Assets] present=True
+    units: ['USD']
+    unit='USD': 144 facts
+    sample USD facts (first 3 by end):
+      end='2008-09-27' filed='2009-07-22' val=39572000000 form='10-Q' fp='Q3' start=None
+      end='2008-09-27' filed='2009-10-27' val=39572000000 form='10-K' fp='FY' start=None
+      end='2008-09-27' filed='2010-01-25' val=36171000000 form='10-K/A' fp='FY' start=None
+    sample USD facts (last 3 by end):
+      end='2025-09-27' filed='2026-05-01' val=359241000000 form='10-Q' fp='Q2' start=None
+      end='2025-12-27' filed='2026-01-30' val=379297000000 form='10-Q' fp='Q1' start=None
+      end='2026-03-28' filed='2026-05-01' val=371082000000 form='10-Q' fp='Q2' start=None
+
+  [Liabilities] present=True
+    units: ['USD']
+    unit='USD': 142 facts
+    sample USD facts (first 3 by end):
+      end='2008-09-27' filed='2009-07-22' val=18542000000 form='10-Q' fp='Q3' start=None
+      end='2008-09-27' filed='2009-10-27' val=18542000000 form='10-K' fp='FY' start=None
+      end='2008-09-27' filed='2010-01-25' val=13874000000 form='10-K/A' fp='FY' start=None
+    sample USD facts (last 3 by end):
+      end='2025-09-27' filed='2026-05-01' val=285508000000 form='10-Q' fp='Q2' start=None
+      end='2025-12-27' filed='2026-01-30' val=291107000000 form='10-Q' fp='Q1' start=None
+      end='2026-03-28' filed='2026-05-01' val=264591000000 form='10-Q' fp='Q2' start=None
+
+  [AssetsCurrent] present=True
+    units: ['USD']
+    unit='USD': 142 facts
+    sample USD facts (first 3 by end):
+      end='2008-09-27' filed='2009-07-22' val=32311000000 form='10-Q' fp='Q3' start=None
+      end='2008-09-27' filed='2009-10-27' val=32311000000 form='10-K' fp='FY' start=None
+      end='2008-09-27' filed='2010-01-25' val=30006000000 form='10-K/A' fp='FY' start=None
+    sample USD facts (last 3 by end):
+      end='2025-09-27' filed='2026-05-01' val=147957000000 form='10-Q' fp='Q2' start=None
+      end='2025-12-27' filed='2026-01-30' val=158104000000 form='10-Q' fp='Q1' start=None
+      end='2026-03-28' filed='2026-05-01' val=144114000000 form='10-Q' fp='Q2' start=None
+
+  [LiabilitiesCurrent] present=True
+    units: ['USD']
+    unit='USD': 142 facts
+    sample USD facts (first 3 by end):
+      end='2008-09-27' filed='2009-07-22' val=14092000000 form='10-Q' fp='Q3' start=None
+      end='2008-09-27' filed='2009-10-27' val=14092000000 form='10-K' fp='FY' start=None
+      end='2008-09-27' filed='2010-01-25' val=11361000000 form='10-K/A' fp='FY' start=None
+    sample USD facts (last 3 by end):
+      end='2025-09-27' filed='2026-05-01' val=165631000000 form='10-Q' fp='Q2' start=None
+      end='2025-12-27' filed='2026-01-30' val=162367000000 form='10-Q' fp='Q1' start=None
+      end='2026-03-28' filed='2026-05-01' val=134641000000 form='10-Q' fp='Q2' start=None
+
+  [LongTermDebt] present=True
+    units: ['USD']
+    unit='USD': 52 facts
+    sample USD facts (first 3 by end):
+      end='2012-09-29' filed='2013-07-24' val=0 form='10-Q' fp='Q3' start=None
+      end='2012-09-29' filed='2013-10-30' val=0 form='10-K' fp='FY' start=None
+      end='2013-06-29' filed='2013-07-24' val=16958000000 form='10-Q' fp='Q3' start=None
+    sample USD facts (last 3 by end):
+      end='2025-09-27' filed='2026-05-01' val=90700000000 form='10-Q' fp='Q2' start=None
+      end='2025-12-27' filed='2026-01-30' val=88500000000 form='10-Q' fp='Q1' start=None
+      end='2026-03-28' filed='2026-05-01' val=82700000000 form='10-Q' fp='Q2' start=None
+
+  [LongTermDebtNoncurrent] present=True
+    units: ['USD']
+    unit='USD': 88 facts
+    sample USD facts (first 3 by end):
+      end='2014-09-27' filed='2015-07-22' val=28987000000 form='10-Q' fp='Q3' start=None
+      end='2014-09-27' filed='2015-10-28' val=28987000000 form='10-K' fp='FY' start=None
+      end='2015-06-27' filed='2015-07-22' val=47419000000 form='10-Q' fp='Q3' start=None
+    sample USD facts (last 3 by end):
+      end='2025-09-27' filed='2026-05-01' val=78328000000 form='10-Q' fp='Q2' start=None
+      end='2025-12-27' filed='2026-01-30' val=76685000000 form='10-Q' fp='Q1' start=None
+      end='2026-03-28' filed='2026-05-01' val=74404000000 form='10-Q' fp='Q2' start=None
+
+  [StockholdersEquity] present=True
+    units: ['USD']
+    unit='USD': 258 facts
+    sample USD facts (first 3 by end):
+      end='2006-09-30' filed='2009-10-27' val=9984000000 form='10-K' fp='FY' start=None
+      end='2006-09-30' filed='2010-01-25' val=9984000000 form='10-K/A' fp='FY' start=None
+      end='2007-09-29' filed='2009-10-27' val=14532000000 form='10-K' fp='FY' start=None
+    sample USD facts (last 3 by end):
+      end='2025-12-27' filed='2026-01-30' val=88190000000 form='10-Q' fp='Q1' start=None
+      end='2025-12-27' filed='2026-05-01' val=88190000000 form='10-Q' fp='Q2' start=None
+      end='2026-03-28' filed='2026-05-01' val=106491000000 form='10-Q' fp='Q2' start=None
+
+
+--- MSFT (CIK 0000789019) ---
+  total us-gaap concepts: 544
+
+  [Assets] present=True
+    units: ['USD']
+    unit='USD': 140 facts
+    sample USD facts (first 3 by end):
+      end='2009-06-30' filed='2009-10-23' val=77888000000 form='10-Q' fp='Q1' start=None
+      end='2009-06-30' filed='2010-01-28' val=77888000000 form='10-Q' fp='Q2' start=None
+      end='2009-06-30' filed='2010-04-22' val=77888000000 form='10-Q' fp='Q3' start=None
+    sample USD facts (last 3 by end):
+      end='2025-09-30' filed='2025-10-29' val=636351000000 form='10-Q' fp='Q1' start=None
+      end='2025-12-31' filed='2026-01-28' val=665302000000 form='10-Q' fp='Q2' start=None
+      end='2026-03-31' filed='2026-04-29' val=694228000000 form='10-Q' fp='Q3' start=None
+
+  [Liabilities] present=True
+    units: ['USD']
+    unit='USD': 132 facts
+    sample USD facts (first 3 by end):
+      end='2010-06-30' filed='2010-10-28' val=39938000000 form='10-Q' fp='Q1' start=None
+      end='2010-06-30' filed='2011-01-27' val=39938000000 form='10-Q' fp='Q2' start=None
+      end='2010-06-30' filed='2011-04-28' val=39938000000 form='10-Q' fp='Q3' start=None
+    sample USD facts (last 3 by end):
+      end='2025-09-30' filed='2025-10-29' val=273275000000 form='10-Q' fp='Q1' start=None
+      end='2025-12-31' filed='2026-01-28' val=274427000000 form='10-Q' fp='Q2' start=None
+      end='2026-03-31' filed='2026-04-29' val=279861000000 form='10-Q' fp='Q3' start=None
+
+  [AssetsCurrent] present=True
+    units: ['USD']
+    unit='USD': 140 facts
+    sample USD facts (first 3 by end):
+      end='2009-06-30' filed='2009-10-23' val=49280000000 form='10-Q' fp='Q1' start=None
+      end='2009-06-30' filed='2010-01-28' val=49280000000 form='10-Q' fp='Q2' start=None
+      end='2009-06-30' filed='2010-04-22' val=49280000000 form='10-Q' fp='Q3' start=None
+    sample USD facts (last 3 by end):
+      end='2025-09-30' filed='2025-10-29' val=189066000000 form='10-Q' fp='Q1' start=None
+      end='2025-12-31' filed='2026-01-28' val=180190000000 form='10-Q' fp='Q2' start=None
+      end='2026-03-31' filed='2026-04-29' val=175329000000 form='10-Q' fp='Q3' start=None
+
+  [LiabilitiesCurrent] present=True
+    units: ['USD']
+    unit='USD': 140 facts
+    sample USD facts (first 3 by end):
+      end='2009-06-30' filed='2009-10-23' val=27034000000 form='10-Q' fp='Q1' start=None
+      end='2009-06-30' filed='2010-01-28' val=27034000000 form='10-Q' fp='Q2' start=None
+      end='2009-06-30' filed='2010-04-22' val=27034000000 form='10-Q' fp='Q3' start=None
+    sample USD facts (last 3 by end):
+      end='2025-09-30' filed='2025-10-29' val=134996000000 form='10-Q' fp='Q1' start=None
+      end='2025-12-31' filed='2026-01-28' val=130005000000 form='10-Q' fp='Q2' start=None
+      end='2026-03-31' filed='2026-04-29' val=136661000000 form='10-Q' fp='Q3' start=None
+
+  [LongTermDebt] present=True
+    units: ['USD']
+    unit='USD': 128 facts
+    sample USD facts (first 3 by end):
+      end='2010-06-30' filed='2010-07-30' val=5000000000 form='10-K' fp='FY' start=None
+      end='2010-06-30' filed='2011-07-28' val=4900000000 form='10-K' fp='FY' start=None
+      end='2010-09-30' filed='2010-10-28' val=9700000000 form='10-Q' fp='Q1' start=None
+    sample USD facts (last 3 by end):
+      end='2025-09-30' filed='2025-10-29' val=43208000000 form='10-Q' fp='Q1' start=None
+      end='2025-12-31' filed='2026-01-28' val=40262000000 form='10-Q' fp='Q2' start=None
+      end='2026-03-31' filed='2026-04-29' val=40262000000 form='10-Q' fp='Q3' start=None
+
+  [LongTermDebtNoncurrent] present=True
+    units: ['USD']
+    unit='USD': 140 facts
+    sample USD facts (first 3 by end):
+      end='2009-06-30' filed='2009-10-23' val=3746000000 form='10-Q' fp='Q1' start=None
+      end='2009-06-30' filed='2010-01-28' val=3746000000 form='10-Q' fp='Q2' start=None
+      end='2009-06-30' filed='2010-04-22' val=3746000000 form='10-Q' fp='Q3' start=None
+    sample USD facts (last 3 by end):
+      end='2025-09-30' filed='2025-10-29' val=35376000000 form='10-Q' fp='Q1' start=None
+      end='2025-12-31' filed='2026-01-28' val=35425000000 form='10-Q' fp='Q2' start=None
+      end='2026-03-31' filed='2026-04-29' val=31423000000 form='10-Q' fp='Q3' start=None
+
+  [StockholdersEquity] present=True
+    units: ['USD']
+    unit='USD': 210 facts
+    sample USD facts (first 3 by end):
+      end='2008-06-30' filed='2010-07-30' val=36286000000 form='10-K' fp='FY' start=None
+      end='2008-09-30' filed='2009-10-23' val=33594000000 form='10-Q' fp='Q1' start=None
+      end='2008-12-31' filed='2010-01-28' val=34478000000 form='10-Q' fp='Q2' start=None
+    sample USD facts (last 3 by end):
+      end='2025-09-30' filed='2025-10-29' val=363076000000 form='10-Q' fp='Q1' start=None
+      end='2025-12-31' filed='2026-01-28' val=390875000000 form='10-Q' fp='Q2' start=None
+      end='2026-03-31' filed='2026-04-29' val=414367000000 form='10-Q' fp='Q3' start=None
+
+
+=== per-resolver-field presence summary ===
+  total_assets: AAPL -> Assets=True  (any=True)
+  total_assets: MSFT -> Assets=True  (any=True)
+
+  total_liabilities: AAPL -> Liabilities=True  (any=True)
+  total_liabilities: MSFT -> Liabilities=True  (any=True)
+
+  current_assets: AAPL -> AssetsCurrent=True  (any=True)
+  current_assets: MSFT -> AssetsCurrent=True  (any=True)
+
+  current_liabilities: AAPL -> LiabilitiesCurrent=True  (any=True)
+  current_liabilities: MSFT -> LiabilitiesCurrent=True  (any=True)
+
+  long_term_debt: AAPL -> LongTermDebt=True, LongTermDebtNoncurrent=True  (any=True)
+  long_term_debt: MSFT -> LongTermDebt=True, LongTermDebtNoncurrent=True  (any=True)
+
+  total_equity (control): AAPL -> StockholdersEquity=True  (any=True)
+  total_equity (control): MSFT -> StockholdersEquity=True  (any=True)
+
+=== interpretation ===
+If the universal concept is PRESENT in both AAPL and MSFT us-gaap with USD facts,
+the gap is NOT at the source. Concept-map already maps to these names, and the unit
+gate accepts USD. Remaining candidates: (a) resolver's (end, fp, unit) filter never
+finds a matching bucket (period mismatch), or (b) the instant-classification stage
+in _classify_instant_end rejects the end dates (no fiscal-boundary within +/- 15d).
+Artifact 3 tests (b) directly on AAPL Assets.
+
+=== side probes (HSY eps, GOOGL/JPM gross_profit) ===
+
+--- HSY (CIK 0000047111) ---
+  total us-gaap concepts: 687
+  EarningsPerShare* concepts present: ['AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount', 'EarningsPerShareBasic', 'EarningsPerShareDiluted']
+  [EarningsPerShareDiluted] present=True
+    unit='USD/shares': 10 facts
+      end='2009-10-04' filed='2009-11-12' val=1.35 form='10-Q' fp='Q3'
+      end='2009-10-04' filed='2009-11-12' val=0.71 form='10-Q' fp='Q3'
+      end='2010-04-04' filed='2010-05-12' val=0.64 form='10-Q' fp='Q1'
+
+--- GOOGL (CIK 0001652044) ---
+  total us-gaap concepts: 523
+  [GrossProfit] present=False
+  [Revenues] present=True units=['USD'] USD-facts=73
+  [RevenueFromContractWithCustomerExcludingAssessedTax] present=True units=['USD'] USD-facts=87
+  [CostOfRevenue] present=True units=['USD'] USD-facts=142
+  [CostOfGoodsAndServicesSold] present=False
+  [CostOfGoodsSold] present=False
+  [CostOfServices] present=False
+
+--- JPM (CIK 0000019617) ---
+  total us-gaap concepts: 917
+  [GrossProfit] present=False
+  [Revenues] present=True units=['USD'] USD-facts=120
+  [RevenueFromContractWithCustomerExcludingAssessedTax] present=False
+  [CostOfRevenue] present=False
+  [CostOfGoodsAndServicesSold] present=False
+  [CostOfGoodsSold] present=False
+  [CostOfServices] present=False
+
+=== side-probe interpretation ===
+  HSY: see whether EarningsPerShareDiluted is in companyfacts. If yes, the gap is
+       downstream (resolver / classification). If no, HSY emits a different tag
+       (e.g. IncomeLossFromContinuingOperationsPerDilutedShare) and concept-map needs
+       that tag added.
+  GOOGL/JPM: see whether GrossProfit is present. If absent, check CostOfRevenue or
+       CostOfGoodsAndServicesSold — gross_profit could be derived as Revenue - Cost.

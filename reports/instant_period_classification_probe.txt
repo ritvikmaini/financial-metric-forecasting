@@ -1,0 +1,115 @@
+=== instant period classification probe (AAPL) ===
+Concept: us-gaap:Assets
+Total Assets facts loaded: 142
+_QUARTER_DAYS_TOLERANCE = 15 (days)
+
+--- AAPL fy_end_dates (from _compute_fy_end_dates) ---
+  2007: 2007-09-29
+  2008: 2008-09-27
+  2009: 2009-09-26
+  2010: 2010-09-25
+  2011: 2011-09-24
+  2012: 2012-09-29
+  2013: 2013-09-28
+  2014: 2014-09-27
+  2015: 2015-09-26
+  2016: 2016-09-24
+  2017: 2017-09-30
+  2018: 2018-09-29
+  2019: 2019-09-28
+  2020: 2020-09-26
+  2021: 2021-09-25
+  2022: 2022-09-24
+  2023: 2023-09-30
+  2024: 2024-09-28
+  2025: 2025-09-27
+
+Unique Assets end_dates: 69
+
+end_date     -> classification (fiscal_year, period)  closest_dist
+  2008-09-27   -> (fy=2008, period=FY)   (closest=fy2008-FY dist=0d)
+  2009-06-27   -> (fy=2009, period=Q3)   (closest=fy2009-Q3 dist=0d)
+  2009-09-26   -> (fy=2009, period=FY)   (closest=fy2009-FY dist=0d)
+  2009-12-26   -> (fy=2010, period=Q1)   (closest=fy2010-Q1 dist=0d)
+  2010-03-27   -> (fy=2010, period=Q2)   (closest=fy2010-Q2 dist=0d)
+  2010-06-26   -> (fy=2010, period=Q3)   (closest=fy2010-Q3 dist=0d)
+  2010-09-25   -> (fy=2010, period=FY)   (closest=fy2010-FY dist=0d)
+  2010-12-25   -> (fy=2011, period=Q1)   (closest=fy2011-Q1 dist=0d)
+  2011-03-26   -> (fy=2011, period=Q2)   (closest=fy2011-Q2 dist=0d)
+  2011-06-25   -> (fy=2011, period=Q3)   (closest=fy2011-Q3 dist=0d)
+  2011-09-24   -> (fy=2011, period=FY)   (closest=fy2011-FY dist=0d)
+  2011-12-31   -> (fy=2012, period=Q1)   (closest=fy2012-Q1 dist=0d)
+  2012-03-31   -> (fy=2012, period=Q2)   (closest=fy2012-Q2 dist=0d)
+  2012-06-30   -> (fy=2012, period=Q3)   (closest=fy2012-Q3 dist=0d)
+  2012-09-29   -> (fy=2012, period=FY)   (closest=fy2012-FY dist=0d)
+  2012-12-29   -> (fy=2013, period=Q1)   (closest=fy2013-Q1 dist=0d)
+  2013-03-30   -> (fy=2013, period=Q2)   (closest=fy2013-Q2 dist=0d)
+  2013-06-29   -> (fy=2013, period=Q3)   (closest=fy2013-Q3 dist=0d)
+  2013-09-28   -> (fy=2013, period=FY)   (closest=fy2013-FY dist=0d)
+  2013-12-28   -> (fy=2014, period=Q1)   (closest=fy2014-Q1 dist=0d)
+  2014-03-29   -> (fy=2014, period=Q2)   (closest=fy2014-Q2 dist=0d)
+  2014-06-28   -> (fy=2014, period=Q3)   (closest=fy2014-Q3 dist=0d)
+  2014-09-27   -> (fy=2014, period=FY)   (closest=fy2014-FY dist=0d)
+  2014-12-27   -> (fy=2015, period=Q1)   (closest=fy2015-Q1 dist=0d)
+  2015-03-28   -> (fy=2015, period=Q2)   (closest=fy2015-Q2 dist=0d)
+  2015-06-27   -> (fy=2015, period=Q3)   (closest=fy2015-Q3 dist=0d)
+  2015-09-26   -> (fy=2015, period=FY)   (closest=fy2015-FY dist=0d)
+  2015-12-26   -> (fy=2016, period=Q1)   (closest=fy2016-Q1 dist=0d)
+  2016-03-26   -> (fy=2016, period=Q2)   (closest=fy2016-Q2 dist=0d)
+  2016-06-25   -> (fy=2016, period=Q3)   (closest=fy2016-Q3 dist=0d)
+  2016-09-24   -> (fy=2016, period=FY)   (closest=fy2016-FY dist=0d)
+  2016-12-31   -> (fy=2017, period=Q1)   (closest=fy2017-Q1 dist=0d)
+  2017-04-01   -> (fy=2017, period=Q2)   (closest=fy2017-Q2 dist=0d)
+  2017-07-01   -> (fy=2017, period=Q3)   (closest=fy2017-Q3 dist=0d)
+  2017-09-30   -> (fy=2017, period=FY)   (closest=fy2017-FY dist=0d)
+  2017-12-30   -> (fy=2018, period=Q1)   (closest=fy2018-Q1 dist=0d)
+  2018-03-31   -> (fy=2018, period=Q2)   (closest=fy2018-Q2 dist=0d)
+  2018-06-30   -> (fy=2018, period=Q3)   (closest=fy2018-Q3 dist=0d)
+  2018-09-29   -> (fy=2018, period=FY)   (closest=fy2018-FY dist=0d)
+  2018-12-29   -> (fy=2019, period=Q1)   (closest=fy2019-Q1 dist=0d)
+  2019-03-30   -> (fy=2019, period=Q2)   (closest=fy2019-Q2 dist=0d)
+  2019-06-29   -> (fy=2019, period=Q3)   (closest=fy2019-Q3 dist=0d)
+  2019-09-28   -> (fy=2019, period=FY)   (closest=fy2019-FY dist=0d)
+  2019-12-28   -> (fy=2020, period=Q1)   (closest=fy2020-Q1 dist=0d)
+  2020-03-28   -> (fy=2020, period=Q2)   (closest=fy2020-Q2 dist=0d)
+  2020-06-27   -> (fy=2020, period=Q3)   (closest=fy2020-Q3 dist=0d)
+  2020-09-26   -> (fy=2020, period=FY)   (closest=fy2020-FY dist=0d)
+  2020-12-26   -> (fy=2021, period=Q1)   (closest=fy2021-Q1 dist=0d)
+  2021-03-27   -> (fy=2021, period=Q2)   (closest=fy2021-Q2 dist=0d)
+  2021-06-26   -> (fy=2021, period=Q3)   (closest=fy2021-Q3 dist=0d)
+  2021-09-25   -> (fy=2021, period=FY)   (closest=fy2021-FY dist=0d)
+  2021-12-25   -> (fy=2022, period=Q1)   (closest=fy2022-Q1 dist=0d)
+  2022-03-26   -> (fy=2022, period=Q2)   (closest=fy2022-Q2 dist=0d)
+  2022-06-25   -> (fy=2022, period=Q3)   (closest=fy2022-Q3 dist=0d)
+  2022-09-24   -> (fy=2022, period=FY)   (closest=fy2022-FY dist=0d)
+  2022-12-31   -> (fy=2023, period=Q1)   (closest=fy2023-Q1 dist=0d)
+  2023-04-01   -> (fy=2023, period=Q2)   (closest=fy2023-Q2 dist=0d)
+  2023-07-01   -> (fy=2023, period=Q3)   (closest=fy2023-Q3 dist=0d)
+  2023-09-30   -> (fy=2023, period=FY)   (closest=fy2023-FY dist=0d)
+  2023-12-30   -> (fy=2024, period=Q1)   (closest=fy2024-Q1 dist=0d)
+  2024-03-30   -> (fy=2024, period=Q2)   (closest=fy2024-Q2 dist=0d)
+  2024-06-29   -> (fy=2024, period=Q3)   (closest=fy2024-Q3 dist=0d)
+  2024-09-28   -> (fy=2024, period=FY)   (closest=fy2024-FY dist=0d)
+  2024-12-28   -> (fy=2025, period=Q1)   (closest=fy2025-Q1 dist=0d)
+  2025-03-29   -> (fy=2025, period=Q2)   (closest=fy2025-Q2 dist=0d)
+  2025-06-28   -> (fy=2025, period=Q3)   (closest=fy2025-Q3 dist=0d)
+  2025-09-27   -> (fy=2025, period=FY)   (closest=fy2025-FY dist=0d)
+  2025-12-27   -> NO MATCH         (closest=fy2025-FY dist=91d)
+  2026-03-28   -> NO MATCH         (closest=fy2025-FY dist=182d)
+
+Classified:   67 / 69
+Unclassified: 2 / 69
+
+Classification by period bucket:
+  FY: 18
+  Q1: 16
+  Q2: 16
+  Q3: 17
+
+--- unclassified ends ---
+  2025-12-27: closest fiscal-period anchor = fy2025-FY (delta 91d)
+  2026-03-28: closest fiscal-period anchor = fy2025-FY (delta 182d)
+
+=== interpretation ===
+_classify_instant_end rejected 2/69 Assets ends.
+H3 is partially supported; see unclassified ends and deltas above.
