@@ -3,7 +3,8 @@ Source: tests/fixtures/mini.duckdb
 View: per (ticker, fiscal_year, period), MIN(accepted_date) = earliest emission.
 Q4 lag = (Q4_first_accepted - FY_first_accepted) in days. A large positive lag means
 Q4 didn't appear at the FY filing — it only materialised at the NEXT FY's 10-K.
-Phantom-aware: filter requires revenue IS NOT NULL, which drops L-INFRA-013 phantom Q-rows (their revenue is null by construction).
+Field-level PIT (L-INFRA-014): presence cells use revenue IS NOT NULL on the field-level synthesized view so partial re-disclosures don't falsely depress presence.
+Phantom-aware: deduped to one row per (security, fy, period) by latest end_date.
 
 === AAPL ===
 FY   | Q1             | Q2             | Q3             | Q4             | FY accepted | Q4 accepted | Q4 lag (days)
@@ -112,6 +113,7 @@ FY   | Q1             | Q2             | Q3             | Q4             | FY ac
 2023 | N              | N              | N              | N              | 2024-02-16  | ---  | —
 2024 | N              | N              | N              | N              | 2025-02-14  | ---  | —
 2025 | N              | N              | N              | N              | 2026-02-13  | ---  | —
+2026 | N              | N              | N              | N              | ---  | ---  | —
 Pattern: mixed — contemporaneous FY[2010, 2011, 2012, 2013, 2014], year-lagged FY[2009].
 
 === ZTS ===
