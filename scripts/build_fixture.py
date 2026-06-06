@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import logging
 import sys
 import tempfile
@@ -28,6 +29,7 @@ from fmf.data.edgar.validation import (
     validate_anchors,
 )
 from scripts.ingest_edgar import main as run_ingest
+from scripts.ingest_yfinance import main as run_ingest_yfinance
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +66,18 @@ def main(argv: list[str] | None = None) -> int:
         "--known-financials",
         type=Path,
         default=REPO_ROOT / "tests" / "fixtures" / "known_financials.json",
+    )
+    parser.add_argument(
+        "--yfinance-start",
+        type=lambda s: dt.date.fromisoformat(s),
+        default=dt.date(2010, 1, 1),
+        help="yfinance price history start date",
+    )
+    parser.add_argument(
+        "--yfinance-end",
+        type=lambda s: dt.date.fromisoformat(s),
+        default=dt.date.today(),
+        help="yfinance price history end date (default: today)",
     )
     args = parser.parse_args(argv)
 
@@ -104,6 +118,36 @@ def main(argv: list[str] | None = None) -> int:
             return 2
     finally:
         conn.close()
+
+    # yfinance augment: prices + consensus + securities metadata.
+    log.info("starting yfinance augment...")
+    yfinance_rc = run_ingest_yfinance(
+        [
+            "--ticker-file",
+            str(tickers_path),
+            "--db",
+            str(args.out),
+            "--start",
+            args.yfinance_start.isoformat(),
+            "--end",
+            args.yfinance_end.isoformat(),
+        ]
+    )
+    if yfinance_rc != 0:
+        log.error("yfinance ingest failed with rc=%s", yfinance_rc)
+        return yfinance_rc
+
+    # Re-run anchor validation as a sanity check that fundamentals were untouched.
+    conn = duckdb.connect(str(args.out), read_only=True)
+    try:
+        validate_anchors(conn, truth)
+        log.info("anchor validation PASSED after yfinance augment (fundamentals untouched)")
+    except AnchorValidationError as e:
+        log.error("anchor validation FAILED after yfinance augment:\n%s", e)
+        return 3
+    finally:
+        conn.close()
+
     log.info("fixture written: %s", args.out)
     return 0
 
