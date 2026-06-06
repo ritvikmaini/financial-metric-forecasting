@@ -1,21 +1,25 @@
 """Normalize XBRL facts to schema rows.
 
 Pipeline:
-1. Group facts by (fiscal_year, period, end, filed) where fiscal_year is
-   derived from `end.year` (US convention: fiscal years are named for
-   the calendar year they end in). The fact's `fy` field is the filing's
-   frame, NOT the data's fiscal year, so trusting it would mislabel
-   comparatives (L4). For period, use form+fp via period_from_form_fp.
-2. For each (fiscal_year, period, filed, end) group, walk concept_map per
-   target field and pick the first match (priority + unit gate, L1+L4).
-3. Emit one row per (fiscal_year, period, filed) — restatements coexist (L2).
-4. Derive Q4 per fiscal_year for flow-statement fields. For each FY filing,
+1. Build the company's fiscal calendar from the input facts (FY-end dates
+   per fiscal year), extracted from annual facts (fp=FY, form=10-K[/A]).
+   Fallbacks: infer from Q3 ends (Q3-end + ~91 days), else calendar-year FY.
+2. Group facts by (fiscal_year, period, end, filed). For FLOW facts
+   (start != None) period comes from form+fp via period_from_form_fp and
+   fiscal_year is derived FY-end-aware ("next FY-end at or after end").
+   For INSTANT facts (balance sheet; start == None) BOTH fiscal_year and
+   period are derived from end_date matching the fiscal calendar — this
+   keeps a prior-FY-end balance sheet labeled period=FY even when it
+   appears as a comparative in a Q1 10-Q (whose `fp` is Q1).
+3. For each group, walk concept_map per target field and pick the first
+   match (priority + unit gate, L1+L4). For instant buckets, the resolver
+   skips the fp filter (the fact's fp may not match the derived period).
+4. Emit one row per (fiscal_year, period, filed) — restatements coexist (L2).
+5. Derive Q4 per fiscal_year for flow-statement fields. For each FY filing,
    find the latest Q1/Q2/Q3 values whose accepted_date <= the FY filing's
-   accepted_date, compute Q4 = FY - (Q1+Q2+Q3), and emit a Q4 row with
-   accepted_date = FY filing's accepted_date (Q4 only becomes knowable
-   when the 10-K lands). Restated FY filings produce additional Q4 rows
-   per restatement. (L3)
-5. Return NormalizedTables(income_statement, balance_sheet, cashflow).
+   accepted_date, compute Q4 = FY - (Q1+Q2+Q3), and emit a Q4 row whose
+   end_date = the FY filing's end_date (Q4 ends at FY-end).
+6. Return NormalizedTables(income_statement, balance_sheet, cashflow).
 """
 
 from __future__ import annotations
@@ -78,6 +82,10 @@ _QUARTER_DAYS_MAX = 100
 _ANNUAL_DAYS_MIN = 340
 _ANNUAL_DAYS_MAX = 380
 
+# Tolerance for matching instant ends to fiscal-period boundaries.
+# Accommodates 52/53-week fiscal calendars and minor calendar drift.
+_QUARTER_DAYS_TOLERANCE: Final[int] = 15
+
 
 @dataclass(frozen=True, slots=True)
 class NormalizedTables:
@@ -124,12 +132,100 @@ def _duration_matches_period(fact: Fact, period: str) -> bool:
     return True
 
 
+def _compute_fy_end_dates(facts: list[Fact]) -> dict[int, dt.date]:
+    """Compute per-fiscal-year FY-end dates from the company's facts.
+
+    Annual facts have fp='FY' and form in {'10-K', '10-K/A'}. Their `end`
+    field is the company's FY-end date for that year. The returned mapping
+    is keyed on `end.year` (calendar year of FY-end) so a lookup by fact
+    end -> fiscal calendar is direct.
+
+    Fallback 1: if no annual facts are present, infer from Q3 facts
+    (Q3-end + ~91 days approximates FY-end).
+    Fallback 2: empty dict; downstream falls back to end.year (calendar-
+    year fiscal years).
+    """
+    by_year: dict[int, set[dt.date]] = defaultdict(set)
+    for f in facts:
+        if f.fp == "FY" and f.form in ("10-K", "10-K/A"):
+            by_year[f.end.year].add(f.end)
+    if by_year:
+        return {y: max(ends) for y, ends in by_year.items()}
+
+    q3_by_year: dict[int, set[dt.date]] = defaultdict(set)
+    for f in facts:
+        if f.fp == "Q3" and f.form in ("10-Q", "10-Q/A"):
+            q3_by_year[f.end.year].add(f.end)
+    if q3_by_year:
+        return {y: max(ends) + dt.timedelta(days=91) for y, ends in q3_by_year.items()}
+
+    return {}
+
+
+def _derive_fiscal_year(
+    end: dt.date,
+    fy_end_dates: dict[int, dt.date],
+) -> int:
+    """Derive the fiscal year for a fact with the given end date.
+
+    A period belongs to the fiscal year whose FY-end is the next FY-end
+    at or after `end`. Example: AAPL Q1 FY2010 (end Dec 26, 2009) -> next
+    FY-end >= that date = Sep 25, 2010 -> fiscal_year=2010.
+
+    Fallback: if fy_end_dates is empty (no annual or Q3 facts to anchor
+    the calendar), return end.year (calendar-year FY).
+    """
+    if not fy_end_dates:
+        return end.year
+
+    candidate = fy_end_dates.get(end.year)
+    if candidate is not None and candidate >= end:
+        return end.year
+
+    next_year_fy_end = fy_end_dates.get(end.year + 1)
+    if next_year_fy_end is not None:
+        return end.year + 1
+
+    return end.year
+
+
+def _classify_instant_end(
+    end: dt.date,
+    fy_end_dates: dict[int, dt.date],
+) -> tuple[int, str] | None:
+    """Map an instant fact's end_date to (fiscal_year, period) using the
+    fiscal calendar.
+
+    Match `end` against FY-end and approximate Q1/Q2/Q3 ends
+    (FY-end - 273/182/91 days) within +/- 15 days. Picks the closest
+    match across all candidates. Returns None if nothing matches within
+    tolerance (caller skips the fact).
+    """
+    best: tuple[int, str, int] | None = None  # (fiscal_year, period, abs_dist)
+
+    for fy, fy_end in fy_end_dates.items():
+        dist = abs((end - fy_end).days)
+        if dist <= _QUARTER_DAYS_TOLERANCE and (best is None or dist < best[2]):
+            best = (fy, "FY", dist)
+
+        for q_label, days_back in (("Q3", 91), ("Q2", 182), ("Q1", 273)):
+            q_approx = fy_end - dt.timedelta(days=days_back)
+            dist = abs((end - q_approx).days)
+            if dist <= _QUARTER_DAYS_TOLERANCE and (best is None or dist < best[2]):
+                best = (fy, q_label, dist)
+
+    if best is None:
+        return None
+    return (best[0], best[1])
+
+
 def _row_template(
     security_id: uuid.UUID,
     fiscal_year: int,
     period: str,
     filing_date: dt.date,
     accepted_date: dt.date,
+    end_date: dt.date,
     fields: tuple[str, ...],
 ) -> dict[str, object]:
     base: dict[str, object] = {
@@ -138,6 +234,7 @@ def _row_template(
         "period": period,
         "filing_date": filing_date,
         "accepted_date": accepted_date,
+        "end_date": end_date,
     }
     for f in fields:
         base[f] = None
@@ -152,20 +249,39 @@ def _collect_per_period(
     """Group facts by (fiscal_year, period, end, filed) and resolve each
     target field using the concept map.
 
-    fiscal_year is derived from `f.end.year`. period is derived from form+fp.
-    For flow concepts, the duration filter rejects YTD cumulative twins so
-    Q2/Q3 carry the discrete-quarter value, not the YTD aggregate.
+    The company's fiscal calendar (per-year FY-end) is computed first from
+    the input facts; this is used to derive fiscal_year FY-end-aware and,
+    for instant facts, to derive both fiscal_year and period from end_date.
+
+    The fact's `fy` field is the filing's frame, NOT the data's fiscal
+    year, and is ignored.
+
+    For flow facts (start != None), period comes from form+fp via
+    period_from_form_fp and the duration filter rejects YTD cumulative
+    twins.
+
+    For instant facts (start == None), both fiscal_year and period are
+    derived from the end date matching the fiscal calendar. This avoids
+    labeling a prior-FY-end balance sheet as period=Q1 just because it
+    appears as a comparative in a Q1 10-Q.
     """
+    fy_end_dates = _compute_fy_end_dates(facts)
+
     by_key: dict[tuple[int, str, dt.date, dt.date], list[Fact]] = defaultdict(list)
     for f in facts:
-        try:
-            period = period_from_form_fp(form=f.form, fp=f.fp)
-        except ValueError:
-            continue
-        if not _duration_matches_period(f, period):
-            continue
-        # Critical: fiscal_year comes from end.year, NOT from f.fy.
-        fiscal_year = f.end.year
+        if f.start is None:
+            classification = _classify_instant_end(f.end, fy_end_dates)
+            if classification is None:
+                continue
+            fiscal_year, period = classification
+        else:
+            try:
+                period = period_from_form_fp(form=f.form, fp=f.fp)
+            except ValueError:
+                continue
+            if not _duration_matches_period(f, period):
+                continue
+            fiscal_year = _derive_fiscal_year(f.end, fy_end_dates)
         by_key[(fiscal_year, period, f.end, f.filed)].append(f)
 
     rows: list[dict[str, object]] = []
@@ -176,15 +292,32 @@ def _collect_per_period(
             period=period,
             filing_date=filed,
             accepted_date=filed,
+            end_date=end,
             fields=fields,
         )
+        # For instant buckets the derived period may not equal any fact's
+        # fp (e.g., a prior-FY-end BS appearing as a Q1 comparative). Skip
+        # the fp filter in resolve_field in that case.
+        is_instant_bucket = all(f.start is None for f in candidates)
+        any_resolved = False
         for field in fields:
             if field not in CONCEPT_MAP or not CONCEPT_MAP[field]:
                 continue
-            resolved = resolve_field(candidates, field=field, end=end, fp=period)
+            resolved = resolve_field(
+                candidates,
+                field=field,
+                end=end,
+                fp=None if is_instant_bucket else period,
+            )
             if resolved is not None:
                 row[field] = resolved.value
-        rows.append(row)
+                any_resolved = True
+        # Only emit a row if at least one target field resolved. Otherwise
+        # we'd emit null-only rows for facts whose concepts belong to other
+        # tables (e.g. a Revenues fact creates a bucket in the balance_sheet
+        # call but no balance-sheet field resolves to it).
+        if any_resolved:
+            rows.append(row)
     return rows
 
 
@@ -195,7 +328,8 @@ def derive_q4_rows(
     """For each FY filing, derive Q4 = FY - (Q1+Q2+Q3) using the latest
     Q1/Q2/Q3 values whose accepted_date <= the FY filing's accepted_date.
 
-    The Q4 row's accepted_date = the FY filing's accepted_date.
+    The Q4 row's accepted_date = the FY filing's accepted_date and its
+    end_date = the FY filing's end_date (Q4 ends at FY-end).
     Restated FY filings produce additional Q4 rows.
     """
     fy_rows = [r for r in fy_and_q_rows if str(r["period"]) == "FY"]
@@ -214,6 +348,8 @@ def derive_q4_rows(
         fy = cast(int, fy_row["fiscal_year"])
         fy_accepted = fy_row["accepted_date"]
         assert isinstance(fy_accepted, dt.date)
+        fy_end_date = fy_row["end_date"]
+        assert isinstance(fy_end_date, dt.date)
 
         q_rows: dict[str, dict[str, object] | None] = {"Q1": None, "Q2": None, "Q3": None}
         for q_label in ("Q1", "Q2", "Q3"):
@@ -234,6 +370,7 @@ def derive_q4_rows(
             period="Q4",
             filing_date=cast(dt.date, fy_row["filing_date"]),
             accepted_date=fy_accepted,
+            end_date=fy_end_date,
             fields=fields,
         )
         any_derived = False
@@ -278,6 +415,6 @@ def normalize_to_tables(*, facts: list[Fact], security_id: uuid.UUID) -> Normali
 
 
 def _empty_df(fields: tuple[str, ...]) -> pd.DataFrame:
-    cols = ["security_id", "fiscal_year", "period", "filing_date", "accepted_date"]
+    cols = ["security_id", "fiscal_year", "period", "filing_date", "accepted_date", "end_date"]
     cols.extend(fields)
     return pd.DataFrame(columns=cols)

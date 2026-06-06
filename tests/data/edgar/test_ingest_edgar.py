@@ -15,10 +15,6 @@ from pathlib import Path
 import duckdb
 import pytest
 
-pytestmark = pytest.mark.skip(
-    reason="Step A schema change; Step B fixes normalize to emit end_date"
-)
-
 REPO_ROOT = Path(__file__).parent.parent.parent.parent
 
 

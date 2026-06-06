@@ -126,17 +126,24 @@ def resolve_field(
     *,
     field: str,
     end: dt.date,
-    fp: str,
+    fp: str | None,
 ) -> Fact | None:
     """Walk CONCEPT_MAP[field] in priority order; return the first fact
     that matches (end, fp, allowed unit). None if nothing matches.
+
+    fp=None disables the fp filter. Used by the normalize layer for
+    instant (balance-sheet) facts where the row's period is derived from
+    end_date matching the fiscal calendar rather than from the fact's
+    fp (which is the filing's frame, not the data's fiscal period).
     """
     if field not in CONCEPT_MAP:
         raise KeyError(f"unknown field {field!r}; not in CONCEPT_MAP")
     allowed_units = _allowed_units(field)
     by_concept: dict[str, list[Fact]] = {}
     for f in facts:
-        if f.end != end or f.fp != fp:
+        if f.end != end:
+            continue
+        if fp is not None and f.fp != fp:
             continue
         if f.unit not in allowed_units:
             continue

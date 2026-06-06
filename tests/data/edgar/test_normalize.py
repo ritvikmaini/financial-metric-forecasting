@@ -23,10 +23,6 @@ from fmf.data.edgar.normalize import (
     period_from_form_fp,
 )
 
-pytestmark = pytest.mark.skip(
-    reason="Step A schema change; Step B fixes normalize to emit end_date"
-)
-
 AAPL_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 
@@ -168,6 +164,8 @@ def test_q4_derived_with_realistic_filing_dates() -> None:
     assert len(q4) == 1
     assert q4.iloc[0]["revenue"] == pytest.approx(400.0 - 80.0 - 100.0 - 110.0)
     assert q4.iloc[0]["accepted_date"] == dt.date(2024, 2, 1)
+    # Q4 ends at FY-end: its end_date inherits from the FY row's end_date.
+    assert q4.iloc[0]["end_date"] == dt.date(2023, 12, 31)
 
 
 def test_q4_uses_only_q_filings_known_at_fy_accepted_date() -> None:
@@ -210,6 +208,9 @@ def test_q4_derived_per_fy_restatement() -> None:
     by_accepted = {r["accepted_date"]: r for _, r in q4.iterrows()}
     assert by_accepted[dt.date(2024, 2, 1)]["revenue"] == pytest.approx(110.0)
     assert by_accepted[dt.date(2024, 8, 15)]["revenue"] == pytest.approx(115.0)
+    # Both Q4 rows end at FY-end.
+    assert by_accepted[dt.date(2024, 2, 1)]["end_date"] == dt.date(2023, 12, 31)
+    assert by_accepted[dt.date(2024, 8, 15)]["end_date"] == dt.date(2023, 12, 31)
 
 
 def test_q4_not_derived_when_any_quarter_missing() -> None:
@@ -360,5 +361,87 @@ def test_output_has_three_tables_with_schema_columns() -> None:
     assert isinstance(out.income_statement, pd.DataFrame)
     assert isinstance(out.balance_sheet, pd.DataFrame)
     assert isinstance(out.cashflow, pd.DataFrame)
-    for col in ("security_id", "fiscal_year", "period", "filing_date", "accepted_date"):
+    for col in (
+        "security_id",
+        "fiscal_year",
+        "period",
+        "filing_date",
+        "accepted_date",
+        "end_date",
+    ):
         assert col in out.income_statement.columns
+
+
+# --- instant-period derivation (Step B) ---
+
+
+def test_instant_fact_at_fy_end_labeled_fy_period() -> None:
+    """A balance-sheet fact at the FY-end date is labeled period=FY,
+    even if its fp is something else (e.g., the FILING's fp).
+
+    AAPL's BS at end of FY2009 (Sep 26, 2009) appears as a comparative in
+    the Q1 FY2010 10-Q with fp='Q1'. Normalize must label it period='FY',
+    not period='Q1'.
+    """
+    fy_anchor = _fy_fact(
+        "Revenues",
+        end=dt.date(2009, 9, 26),
+        filed=dt.date(2009, 10, 26),
+        value=42_905_000_000.0,
+    )
+    bs_comparative = Fact(
+        concept="Assets",
+        end=dt.date(2009, 9, 26),
+        filed=dt.date(2010, 1, 25),
+        value=47_501_000_000.0,
+        unit="USD",
+        form="10-Q",
+        fp="Q1",
+        fy=2010,
+        start=None,
+    )
+    out = normalize_to_tables(
+        facts=[fy_anchor, bs_comparative],
+        security_id=AAPL_ID,
+    )
+    bs = out.balance_sheet
+    bs2009 = bs[bs["fiscal_year"] == 2009]
+    assert len(bs2009) == 1
+    assert (
+        bs2009.iloc[0]["period"] == "FY"
+    ), f"Instant BS at FY-end must be labeled period=FY, got {bs2009.iloc[0]['period']}"
+    assert bs2009.iloc[0]["end_date"] == dt.date(2009, 9, 26)
+    assert bs2009.iloc[0]["total_assets"] == pytest.approx(47_501_000_000.0)
+
+
+def test_instant_fact_at_q1_fy2010_end_labeled_q1_fy2010() -> None:
+    """AAPL's Q1 FY2010 ends Dec 26, 2009. A BS fact at that end_date
+    must be labeled (fiscal_year=2010, period=Q1), NOT (fy=2009, period=Q1)
+    which is what end.year-based labeling would give.
+    """
+    fy2010_anchor = _fy_fact(
+        "Revenues",
+        end=dt.date(2010, 9, 25),
+        filed=dt.date(2010, 10, 27),
+        value=65_225_000_000.0,
+    )
+    bs_q1 = Fact(
+        concept="Assets",
+        end=dt.date(2009, 12, 26),
+        filed=dt.date(2010, 1, 25),
+        value=53_926_000_000.0,
+        unit="USD",
+        form="10-Q",
+        fp="Q1",
+        fy=2010,
+        start=None,
+    )
+    out = normalize_to_tables(
+        facts=[fy2010_anchor, bs_q1],
+        security_id=AAPL_ID,
+    )
+    bs = out.balance_sheet
+    q1 = bs[(bs["fiscal_year"] == 2010) & (bs["period"] == "Q1")]
+    assert len(q1) == 1
+    assert q1.iloc[0]["end_date"] == dt.date(2009, 12, 26)
+    assert q1.iloc[0]["total_assets"] == pytest.approx(53_926_000_000.0)
