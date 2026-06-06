@@ -59,6 +59,8 @@ module = [
     "fmf.data.edgar.concept_map",
     "fmf.data.edgar.normalize",
     "fmf.data.edgar.validation",
+    "fmf.features.audit.coverage",
+    "fmf.features.audit.sources",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
