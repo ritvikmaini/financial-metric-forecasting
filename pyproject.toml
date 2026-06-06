@@ -65,6 +65,7 @@ module = [
     "fmf.data.yfinance._client",
     "fmf.data.yfinance.prices",
     "fmf.data.yfinance.consensus",
+    "fmf.data.yfinance.securities",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
