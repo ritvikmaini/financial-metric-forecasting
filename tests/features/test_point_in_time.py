@@ -388,11 +388,11 @@ def test_pit_series_partial_redisclosure_retains_omitted_field() -> None:
             f"eps_diluted should update to restated 1.55; got {row['eps_diluted']}"
         )
         # Provenance: synthesized accepted_date = MAX in group up to as_of.
-        accepted = row["accepted_date"]
-        if not isinstance(accepted, dt.date):
-            import pandas as pd
+        # Normalize unconditionally — pd.Timestamp is a dt.date subclass
+        # but compares as unequal; mirrors the sibling prices test pattern.
+        import pandas as pd
 
-            accepted = pd.Timestamp(accepted).date()
+        accepted = pd.Timestamp(row["accepted_date"]).date()
         assert accepted == dt.date(2023, 11, 1), (
             f"synthesized accepted_date should be MAX in group (2023-11-01), got {accepted}"
         )
@@ -413,11 +413,7 @@ def test_pit_series_partial_redisclosure_retains_omitted_field() -> None:
             f"as_of 2022 must NOT see the 2023 restatement; got "
             f"eps_diluted={row_before['eps_diluted']}"
         )
-        accepted_before = row_before["accepted_date"]
-        if not isinstance(accepted_before, dt.date):
-            import pandas as pd
-
-            accepted_before = pd.Timestamp(accepted_before).date()
+        accepted_before = pd.Timestamp(row_before["accepted_date"]).date()
         assert accepted_before == dt.date(2020, 11, 1)
     finally:
         mem.close()
