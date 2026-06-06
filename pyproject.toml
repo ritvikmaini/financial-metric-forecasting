@@ -80,6 +80,8 @@ module = [
     "fmf.features.matrix_builder",
     "fmf.equity.forecasting.models.lightgbm_model",
     "fmf.equity.forecasting.models.protocols",
+    "fmf.equity.forecasting.models.tirex_model",
+    "fmf.equity.forecasting.models._tirex_preprocessing",
     "scripts.coverage_audit",
     "scripts.build_feature_matrix",
 ]
