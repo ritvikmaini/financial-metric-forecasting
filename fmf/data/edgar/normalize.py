@@ -364,8 +364,19 @@ def derive_q4_rows(
         fy = cast(int, r["fiscal_year"])
         period = str(r["period"])
         by_fy_period[(fy, period)].append(r)
+    # L-INFRA-013: sort by (accepted_date, end_date) so accepted_date ties
+    # resolve by latest end_date. The Q3 10-Q's comparative facts inherit
+    # fp=Q3 (filing's frame) and land in the (fy, Q3) bucket alongside the
+    # genuine discrete Q3, sharing the Q3 10-Q's accepted_date. Sorting
+    # by accepted_date alone leaves ties to stable-sort input order, often
+    # selecting a phantom null-revenue row as available[-1]. The genuine
+    # quarter always has the latest end among such ties (phantoms are
+    # intra-fiscal-year EARLIER periods), so (accepted_date, end_date)
+    # selects the genuine row deterministically.
     for key in by_fy_period:
-        by_fy_period[key].sort(key=lambda r: cast(dt.date, r["accepted_date"]))
+        by_fy_period[key].sort(
+            key=lambda r: (cast(dt.date, r["accepted_date"]), cast(dt.date, r["end_date"]))
+        )
 
     derived: list[dict[str, object]] = []
     for fy_row in fy_rows:
