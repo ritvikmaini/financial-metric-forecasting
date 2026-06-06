@@ -4,10 +4,12 @@ Iterate BUILTIN_REGISTRY. For each feature, compute the value for every
 (security, fiscal_year) sample where as_of = MAX(accepted_date) over the
 (security, fiscal_year, FY-period) filings. Report per-feature
 coverage_pct and writes reports/coverage_audit.json. Exits 1 if any
-non-experimental feature is below its declared min_coverage_pct.
+feature (experimental or not) is below its declared min_coverage_pct.
 
-The audit is the measurement substrate for collaboratively finalizing
-the 25 provisional derived thresholds (set to 0.50 in builtin_features).
+Experimentals are monitored against their floors: the experimental flag
+means "excluded from the shipped headline set and documented as
+incomplete," not "unmonitored." A regression in an experimental feature
+below its measured-grounded floor still warns.
 """
 
 from __future__ import annotations
@@ -101,7 +103,7 @@ def run_audit() -> int:
             "filled": filled,
             "total_samples": total,
         }
-        if not f.experimental and coverage_pct < f.min_coverage_pct:
+        if coverage_pct < f.min_coverage_pct:
             warnings.append(
                 f"{f.name}: measured {coverage_pct:.3f} < required {f.min_coverage_pct:.3f}"
             )
@@ -119,11 +121,11 @@ def run_audit() -> int:
     print(f"Audit ran across {total_samples} (security, FY) samples.")
     print(f"Wrote report: {REPORT_PATH.relative_to(REPO_ROOT)}")
     if warnings:
-        print(f"\n{len(warnings)} non-experimental features below threshold:")
+        print(f"\n{len(warnings)} features below threshold:")
         for w in warnings:
             print(f"  - {w}")
         return 1
-    print("\nAll non-experimental features meet their declared thresholds.")
+    print("\nAll features meet their declared thresholds.")
     return 0
 
 

@@ -52,13 +52,23 @@ def test_registry_has_three_experimental_features() -> None:
     assert exp == {"gross_profit_latest", "gross_profit_ttm", "gross_margin"}
 
 
-def test_registry_threshold_split() -> None:
-    """34 final-thresholded (any min_coverage_pct != 0.50) +
-    25 provisional-thresholded (min_coverage_pct == 0.50)."""
-    final = [f for f in BUILTIN_REGISTRY if f.min_coverage_pct != 0.50]
-    prov = [f for f in BUILTIN_REGISTRY if f.min_coverage_pct == 0.50]
-    assert len(final) == 34
-    assert len(prov) == 25
+def test_registry_thresholds_all_final() -> None:
+    """Post-finalize: all 59 thresholds are anchored to measured values
+    (raw-coverage for the 34 raw-grounded features, T4 audit measured-5pp
+    capped at 0.95 for the 25 derived). No provisionals remain.
+
+    Floor range expected in [0.55, 0.95]:
+    - 0.55 lower bound covers the gross_profit experimentals' floor
+      (measured ~0.6301 - 5pp ≈ 0.58).
+    - 0.95 cap is the 100%-measured ceiling.
+    - No feature should still be at the provisional 0.50 placeholder.
+    """
+    floors = [f.min_coverage_pct for f in BUILTIN_REGISTRY]
+    assert min(floors) >= 0.55, (
+        f"some feature still at a provisional or sub-experimental floor: min={min(floors)}"
+    )
+    assert max(floors) <= 0.95, f"some feature exceeds the 0.95 cap: max={max(floors)}"
+    assert all(f.min_coverage_pct != 0.50 for f in BUILTIN_REGISTRY)
 
 
 def test_every_feature_is_invokable_for_aapl(

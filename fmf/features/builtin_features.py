@@ -3,14 +3,16 @@
 59 features populated as `BUILTIN_REGISTRY`. Each feature wraps a
 compute_fn(*, conn, security_id, as_of_date) -> float | None.
 
-Two threshold tiers:
-- 34 "final-thresholded" features grounded in measured raw column
-  coverage (see reports/raw_column_coverage.txt). Their
-  min_coverage_pct values are the user-approved targets.
-- 25 "provisional-thresholded" derived features at min_coverage_pct=0.50
-  pending the T4 audit's measurement. The audit script writes
-  reports/coverage_audit.json with measured values; the user
-  collaboratively finalizes these thresholds in a follow-up.
+All 59 thresholds final (no provisionals):
+- 34 raw-grounded features have min_coverage_pct set against the
+  per-column non-null measurements in reports/raw_column_coverage.txt.
+- 25 derived features (TTM / YoY / margins / BS ratios / FCF /
+  profitability / pe) have min_coverage_pct set at measured-5pp
+  (cap 0.95) from the T4 audit's reports/coverage_audit.json.
+- Experimentals (gross_profit_latest, gross_profit_ttm, gross_margin)
+  are MONITORED against their floors per the post-T3b audit semantic;
+  the experimental flag means "excluded from the shipped headline set
+  and documented as incomplete," not "unmonitored."
 
 Factory pattern: every "_latest" / "_ttm" / "_yoy" / margin / sector
 one-hot / price-derived feature is built by a closure factory so the
@@ -859,8 +861,12 @@ def _build_registry() -> FeatureRegistry:
             )
         )
 
-    # === Provisional-thresholded derived features (25) ===
-    prov = 0.50
+    # === Final-thresholded derived features (25) ===
+    # Floors set at measured coverage - 5pp (cap 0.95); see T4 audit run
+    # at reports/coverage_audit.json. Experimentals (gross_profit_ttm,
+    # gross_margin) are MONITORED against their floors per the audit's
+    # post-T3b semantic — the experimental flag means "excluded from the
+    # shipped headline set," not "unmonitored."
 
     # TTMs (4)
     reg.register(
@@ -871,7 +877,7 @@ def _build_registry() -> FeatureRegistry:
             compute=compute_revenue_ttm,
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.95,
         )
     )
     reg.register(
@@ -882,7 +888,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_make_ttm_feature("income_statement", "net_income"),
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.95,
         )
     )
     reg.register(
@@ -893,7 +899,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_make_ttm_feature("income_statement", "ebit"),
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.86,
         )
     )
     reg.register(
@@ -904,7 +910,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_make_ttm_feature("income_statement", "gross_profit"),
             required=False,
             experimental=True,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.58,
         )
     )
 
@@ -917,7 +923,7 @@ def _build_registry() -> FeatureRegistry:
             compute=compute_revenue_yoy_growth,
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.95,
         )
     )
     reg.register(
@@ -928,7 +934,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_make_yoy_feature("income_statement", "net_income"),
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.95,
         )
     )
     reg.register(
@@ -939,7 +945,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_make_yoy_feature("income_statement", "ebit"),
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.88,
         )
     )
     reg.register(
@@ -950,7 +956,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_make_yoy_feature("income_statement", "eps_diluted"),
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.81,
         )
     )
 
@@ -963,7 +969,7 @@ def _build_registry() -> FeatureRegistry:
             compute=compute_gross_margin_latest,
             required=False,
             experimental=True,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.58,
         )
     )
     reg.register(
@@ -974,7 +980,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_make_margin_feature("ebit", "revenue"),
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.88,
         )
     )
     reg.register(
@@ -985,7 +991,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_make_margin_feature("net_income", "revenue"),
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.95,
         )
     )
 
@@ -998,7 +1004,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_compute_total_liabilities_latest,
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.95,
         )
     )
     reg.register(
@@ -1009,7 +1015,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_compute_equity_to_assets,
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.95,
         )
     )
     reg.register(
@@ -1020,7 +1026,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_compute_liabilities_to_assets,
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.95,
         )
     )
     reg.register(
@@ -1031,7 +1037,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_compute_current_ratio,
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.81,
         )
     )
     reg.register(
@@ -1042,7 +1048,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_compute_debt_to_equity,
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.86,
         )
     )
     reg.register(
@@ -1053,7 +1059,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_compute_debt_to_assets,
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.86,
         )
     )
 
@@ -1066,7 +1072,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_compute_fcf_latest,
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.77,
         )
     )
     reg.register(
@@ -1077,7 +1083,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_make_ttm_feature("cashflow", "operating_cash_flow"),
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.89,
         )
     )
     reg.register(
@@ -1088,7 +1094,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_make_ttm_feature("cashflow", "capital_expenditure"),
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.77,
         )
     )
     reg.register(
@@ -1099,7 +1105,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_compute_fcf_ttm,
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.72,
         )
     )
 
@@ -1112,7 +1118,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_compute_return_on_assets,
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.95,
         )
     )
     reg.register(
@@ -1123,7 +1129,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_compute_return_on_equity,
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.95,
         )
     )
     reg.register(
@@ -1134,7 +1140,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_compute_return_on_invested_capital,
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.86,
         )
     )
     reg.register(
@@ -1145,7 +1151,7 @@ def _build_registry() -> FeatureRegistry:
             compute=_compute_pe_ratio_ttm,
             required=False,
             experimental=False,
-            min_coverage_pct=prov,
+            min_coverage_pct=0.79,
         )
     )
 
