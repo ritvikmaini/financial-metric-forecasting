@@ -135,26 +135,50 @@ def _duration_matches_period(fact: Fact, period: str) -> bool:
 def _compute_fy_end_dates(facts: list[Fact]) -> dict[int, dt.date]:
     """Compute per-fiscal-year FY-end dates from the company's facts.
 
-    Annual facts have fp='FY' and form in {'10-K', '10-K/A'}. Their `end`
-    field is the company's FY-end date for that year. The returned mapping
-    is keyed on `end.year` (calendar year of FY-end) so a lookup by fact
-    end -> fiscal calendar is direct.
+    FY-end determination uses ONLY genuine annual flow facts:
+    - fp == 'FY' (XBRL fiscal-period code)
+    - form in {'10-K', '10-K/A'} (annual reports)
+    - start is not None (excludes balance-sheet instants, which have no
+      duration to disambiguate and can carry fp=FY at the FY-end too)
+    - 340 <= (end - start + 1) <= 380 days (excludes the quarter-
+      discrete comparative pieces that non-calendar-FY 10-Ks tag with
+      fp=FY because they sit within the fiscal year being reported)
 
-    Fallback 1: if no annual facts are present, infer from Q3 facts
-    (Q3-end + ~91 days approximates FY-end).
+    The duration+start gate is load-bearing — see L-INFRA-012. Without
+    it, AAPL, MSFT, JNJ, and SNOW pre-flip-year filings pollute
+    max(end) per calendar year with their 90-day quarterly comparatives,
+    producing wrong FY-end dates that cascade through _derive_fiscal_year
+    and delay Q4 derivation by a year.
+
+    The returned mapping is keyed on `end.year` (calendar year of
+    FY-end) so a lookup by fact-end -> fiscal calendar is direct.
+
+    Fallback 1: if no annual flow facts pass the gate, infer from Q3
+    flow facts that pass the 60-100d quarter-duration gate (Q3-end + ~91
+    days approximates FY-end).
     Fallback 2: empty dict; downstream falls back to end.year (calendar-
     year fiscal years).
     """
     by_year: dict[int, set[dt.date]] = defaultdict(set)
     for f in facts:
-        if f.fp == "FY" and f.form in ("10-K", "10-K/A"):
+        if (
+            f.fp == "FY"
+            and f.form in ("10-K", "10-K/A")
+            and f.start is not None
+            and _ANNUAL_DAYS_MIN <= (f.end - f.start).days + 1 <= _ANNUAL_DAYS_MAX
+        ):
             by_year[f.end.year].add(f.end)
     if by_year:
         return {y: max(ends) for y, ends in by_year.items()}
 
     q3_by_year: dict[int, set[dt.date]] = defaultdict(set)
     for f in facts:
-        if f.fp == "Q3" and f.form in ("10-Q", "10-Q/A"):
+        if (
+            f.fp == "Q3"
+            and f.form in ("10-Q", "10-Q/A")
+            and f.start is not None
+            and _QUARTER_DAYS_MIN <= (f.end - f.start).days + 1 <= _QUARTER_DAYS_MAX
+        ):
             q3_by_year[f.end.year].add(f.end)
     if q3_by_year:
         return {y: max(ends) + dt.timedelta(days=91) for y, ends in q3_by_year.items()}
