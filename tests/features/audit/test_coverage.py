@@ -31,6 +31,23 @@ def test_compute_coverage_returns_per_ticker_rows() -> None:
 
 
 @pytest.mark.skipif(not FIXTURE.exists(), reason="fixture not yet built")
+def test_compute_coverage_dedups_phantoms_one_row_per_security_fy_period() -> None:
+    """L-INFRA-013: compute_coverage must return exactly one row per
+    (security_id, fiscal_year, period) — phantom Q-rows from comparative
+    fp-frame leak must not inflate the denominator.
+    """
+    conn = duckdb.connect(str(FIXTURE), read_only=True)
+    try:
+        df = compute_coverage(conn, table="income_statement")
+    finally:
+        conn.close()
+    dup_keys = df.groupby(["symbol", "fiscal_year", "period"]).size()
+    assert (dup_keys == 1).all(), (
+        f"compute_coverage returned duplicate rows for: {dup_keys[dup_keys > 1].to_dict()}"
+    )
+
+
+@pytest.mark.skipif(not FIXTURE.exists(), reason="fixture not yet built")
 def test_anchor_tickers_have_high_revenue_coverage() -> None:
     """The 5 anchors all have well-populated 10-Ks; the median
     coverage_pct on the income_statement should be > 0.5 per anchor.
