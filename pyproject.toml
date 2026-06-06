@@ -9,6 +9,7 @@ authors = [{ name = "Ritvik Maini" }]
 dependencies = [
     "duckdb>=1.0.0",
     "httpx>=0.28.1",
+    "yfinance>=1.4.1",
 ]
 
 [project.optional-dependencies]
@@ -61,6 +62,7 @@ module = [
     "fmf.data.edgar.validation",
     "fmf.features.audit.coverage",
     "fmf.features.audit.sources",
+    "fmf.data.yfinance._client",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
