@@ -11,6 +11,7 @@ dependencies = [
     "httpx>=0.28.1",
     "yfinance>=1.4.1",
     "pyarrow>=17.0.0",
+    "lightgbm>=4.5,<5",
 ]
 
 [project.optional-dependencies]
@@ -42,6 +43,10 @@ ignore = ["E501"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["B018"]
 "notebooks/**/*.py" = ["E402"]
+# sklearn-style X for feature matrices in the model wrapper + its tests + protocol.
+"fmf/equity/forecasting/models/lightgbm_model.py" = ["N803", "N806"]
+"fmf/equity/forecasting/models/protocols.py" = ["N803"]
+"tests/equity/forecasting/models/test_lightgbm_model.py" = ["N803", "N806", "B018"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -73,6 +78,8 @@ module = [
     "fmf.features.builtin_features",
     "fmf.features.as_of_grid",
     "fmf.features.matrix_builder",
+    "fmf.equity.forecasting.models.lightgbm_model",
+    "fmf.equity.forecasting.models.protocols",
     "scripts.coverage_audit",
     "scripts.build_feature_matrix",
 ]
