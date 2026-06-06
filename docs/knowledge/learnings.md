@@ -170,3 +170,27 @@ Calendar-FY tickers (ZTS, GWW, HSY, JPM, GOOGL) are unaffected because the annua
 **Source:** `fmf/data/edgar/normalize.py::_compute_fy_end_dates` (fix commit `f2d1e28`). Tested at `tests/data/edgar/test_normalize.py::test_q4_derives_at_fy_filing_for_non_calendar_fy` parametrizations `AAPL_FY2015`, `MSFT_FY2020`, `JNJ_FY_ending_2021_01_03` (synthetic-regression commit `f466681`) and `::test_q4_fixture_regression_emits_at_fy_filing` parametrizations `AAPL/2015`, `MSFT/2020` (fixture-regression commit `1fd89d7`).
 
 **Diagnostic artifacts:** `reports/aapl_fy2015_q4_diagnosis.txt` (root-cause investigation), `reports/quarterly_period_coverage.txt` (post-fix coverage map across 9 tickers).
+
+### L-INFRA-013 — derive_q4_rows accepted_date ties broken by latest end_date; coverage tool must dedup phantoms
+
+**Tag:** `[public-data finding]`
+
+**Claim:** After the L-INFRA-012 fix, calendar-FY filers (GWW) regressed from contemporaneous to year-lagged Q4 in fiscal_years FY2019-2025. Root cause: a Q3 10-Q's comparative facts inherit `fp='Q3'` (the filing's frame) and land in the `(fy, Q3)` bucket alongside the genuine discrete Q3. They share the Q3 10-Q's `accepted_date`. Pre-fix, `derive_q4_rows` sorts by `accepted_date` alone; ties resolve via stable-sort input order, often selecting a phantom Q3 row with null revenue as `available[-1]`. Q4 then emits with `revenue=None` (when `any_derived=True` via another field that does derive — e.g., net_income), suppressing the Q4 row at the FY filing date. The next FY's comparatives later supply the missing Q4, year-lagged.
+
+The fix sorts by `(accepted_date, end_date)` so the latest-end row wins among ties. Phantom rows in a (fy, Q3) bucket are intra-fiscal-year EARLIER periods (e.g., Q1/Q2 ends tagged fp=Q3 by the comparative-leak); they always have earlier ends than the genuine Q3. The genuine row carries all fields populated, so latest-end corrects every derived field at once.
+
+**Secondary finding — coverage tool was phantom-blind.** `fmf/features/audit/coverage.py::compute_coverage` counted every row including phantoms, inflating denominators and depressing per-ticker coverage_pct. Fix: dedup to one row per `(security_id, fiscal_year, period)` via `QUALIFY ROW_NUMBER() OVER (PARTITION BY security_id, fiscal_year, period ORDER BY end_date DESC, accepted_date DESC) = 1` BEFORE counting non-null per column. Post-fix raw coverage on income_statement (685 deduped rows vs 1587 raw): revenue 92.8% (was 90.4%), gross_profit 60.3% (was 59.1%), ebit 89.6% (was 85.1%), eps_diluted 69.5% (was 64.1%) — phantoms suppressed every non-null %; eps_diluted, ebit, revenue moved up most.
+
+**Scope:** Calendar-FY filers whose Q3 10-Q emits comparative facts at earlier-quarter ends with fp=Q3. From `reports/quarterly_period_coverage.txt` post-rebuild:
+- GWW FY2019-2025: Q4 contemporaneous, all at the FY 10-K accepted_date (2020-02-20, 2021-02-24, 2022-02-23, 2023-02-21, 2024-02-22, 2025-02-20, 2026-02-19). Pre-fix these were +363–+370 day lagged.
+- MSFT FY2016 also flipped contemporaneous (was year-lagged in the L-INFRA-012 rebuild report).
+- AAPL FY2015 remained contemporaneous (already fixed by L-INFRA-012; the synthetic test confirms the tie-breaker doesn't regress non-calendar-FY cases).
+
+**Not a regression — L-INFRA-003 zero quarterly Revenues:** JPM Q4 FY2015-2025 remains null. The post-rebuild probe shows JPM has `Q1-Q3 non-null count = 0` in those fiscal_years — JPM emits Revenues only as FY facts after the period change (banks tag interest-income components separately), so there is nothing to derive Q4 revenue from. This is the L-INFRA-003 condition surfaced via the audit, NOT a fix failure. JPM is deliberately excluded from the fixture-regression test.
+
+**Source:** `fmf/data/edgar/normalize.py::derive_q4_rows` (fix commit `545db81`) and `fmf/features/audit/coverage.py::compute_coverage` (coverage-tool fix commit `39478de`). Tested at:
+- `tests/data/edgar/test_normalize.py::test_q4_derive_picks_latest_end_among_accepted_date_ties` parametrizations `MSFT_FY2016`, `GWW_FY2020` (synthetic-regression commit `4e777b3`).
+- `tests/data/edgar/test_normalize.py::test_q4_fixture_regression_emits_at_fy_filing` parametrization `GWW/2020` added alongside the existing `AAPL/2015`, `MSFT/2020` from L-INFRA-012 (fixture+rebuild commit `1463970`).
+- `tests/features/audit/test_coverage.py::test_compute_coverage_dedups_phantoms_one_row_per_security_fy_period` (asserts one row per (symbol, fiscal_year, period) post-dedup).
+
+**Diagnostic artifacts:** `reports/raw_column_coverage.txt` and `reports/quarterly_period_coverage.txt` re-measured with the phantom-aware coverage tool (re-measure commit `353ae96`).
