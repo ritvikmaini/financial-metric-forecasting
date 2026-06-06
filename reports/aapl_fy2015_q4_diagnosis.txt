@@ -1,0 +1,173 @@
+=== AAPL FY2015 Q4 emergence — root-cause diagnosis ===
+Source: tests/fixtures/mini.duckdb + live SEC companyfacts (CIK 0000320193).
+
+--- Part A: fixture rows for AAPL FY2015 (income_statement) ---
+Schema: (fiscal_year, period, end_date, accepted_date, revenue, filing_date)
+
+fy   period  end_date      accepted                revenue  filing_date
+2015 FY      2015-09-26    2015-10-28      233,715,000,000  2015-10-28
+2015 FY      2015-09-26    2016-10-26      233,715,000,000  2016-10-26
+2015 FY      2015-09-26    2017-11-03      233,715,000,000  2017-11-03
+2015 Q1      2015-12-26    2016-01-27       75,872,000,000  2016-01-27
+2015 Q1      2015-12-26    2017-02-01       75,872,000,000  2017-02-01
+2015 Q2      2015-03-28    2015-04-28       58,010,000,000  2015-04-28
+2015 Q2      2015-03-28    2016-04-27       58,010,000,000  2016-04-27
+2015 Q3      2015-06-27    2015-07-22       49,605,000,000  2015-07-22
+2015 Q3      2015-06-27    2016-07-27       49,605,000,000  2016-07-27
+2015 Q4      2015-09-26    2016-10-26       50,228,000,000  2016-10-26
+2015 Q4      2015-09-26    2017-11-03       50,228,000,000  2017-11-03
+
+--- Also: AAPL fiscal_year=2014 Q1 rows (the REAL FY2015 Q1 by Apple's fiscal calendar) ---
+fy   period  end_date      accepted                revenue  filing_date
+2014 Q1      2014-12-27    2015-01-28       74,599,000,000  2015-01-28
+2014 Q1      2014-12-27    2016-01-27       74,599,000,000  2016-01-27
+
+Observation: under Apple's fiscal calendar (FY ends late September), FY2015's
+Q1 ends 2014-12-27 and is filed 2015-01-28 — that is BEFORE the FY2015 10-K
+accepted 2015-10-28. But the fixture stores that row under fiscal_year=2014,
+not fiscal_year=2015. Meanwhile the row stored under (fiscal_year=2015, Q1,
+end=2015-12-26) is actually Apple's FY2016 Q1 — filed 2016-01-27, which is
+AFTER the FY2015 10-K accepted date.
+
+Consequence for derive_q4_rows(fy=2015, accepted_cutoff=2015-10-28):
+  Q1 (fy=2015 bucket): earliest accepted 2016-01-27 — UNAVAILABLE at FY filing.
+  Q2 (fy=2015 bucket): earliest accepted 2015-04-28 — available.
+  Q3 (fy=2015 bucket): earliest accepted 2015-07-22 — available.
+derive_q4_rows requires ALL three quarters; Q1 missing -> NO Q4 emitted at the
+FY filing. Q4 only emerges later, when the next year's 10-Q/10-K pushes the
+(mislabeled) Q1 row into the table.
+
+--- Part B: SEC companyfacts probe (CIK 0000320193) ---
+Endpoint: https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json
+User-Agent: fmf-public research mainiritvik@gmail.com
+Concept selected: SalesRevenueNet
+Window: end-date in [2014-09-01, 2015-12-31].
+Facts in window: 32
+
+accn                   start      end        val                       dur  fp   fy    filed      form
+-------------------------------------------------------------------------------------------------------
+0001193125-14-383437   2013-09-29 2014-09-27   182,795,000,000       363d FY   2014  2014-10-27 10-K
+0001193125-14-383437   2014-06-29 2014-09-27    42,123,000,000        90d FY   2014  2014-10-27 10-K
+0001193125-15-023732   2013-09-29 2014-09-27   182,795,000,000       363d ?           2015-01-28 8-K
+0001193125-15-023732   2014-06-29 2014-09-27    42,123,000,000        90d ?           2015-01-28 8-K
+0001193125-15-356351   2013-09-29 2014-09-27   182,795,000,000       363d FY   2015  2015-10-28 10-K
+0001193125-15-356351   2014-06-29 2014-09-27    42,123,000,000        90d FY   2015  2015-10-28 10-K
+0001628280-16-020309   2013-09-29 2014-09-27   182,795,000,000       363d FY   2016  2016-10-26 10-K
+0001193125-15-023697   2014-09-28 2014-12-27    74,599,000,000        90d Q1   2015  2015-01-28 10-Q
+0001193125-15-356351   2014-09-28 2014-12-27    74,599,000,000        90d FY   2015  2015-10-28 10-K
+0001193125-15-023697   2014-09-28 2014-12-27    74,599,000,000        90d Q1   2015  2015-01-28 10-Q
+0001193125-16-439878   2014-09-28 2014-12-27    74,599,000,000        90d Q1   2016  2016-01-27 10-Q
+0001628280-16-020309   2014-09-28 2014-12-27    74,599,000,000        90d FY   2016  2016-10-26 10-K
+0001193125-15-153166   2014-09-28 2015-03-28   132,609,000,000       181d Q2   2015  2015-04-28 10-Q
+0001193125-15-153166   2014-12-28 2015-03-28    58,010,000,000        90d Q2   2015  2015-04-28 10-Q
+0001193125-15-356351   2014-12-28 2015-03-28    58,010,000,000        90d FY   2015  2015-10-28 10-K
+0001193125-16-559625   2014-09-28 2015-03-28   132,609,000,000       181d Q2   2016  2016-04-27 10-Q
+0001193125-16-559625   2014-12-28 2015-03-28    58,010,000,000        90d Q2   2016  2016-04-27 10-Q
+0001628280-16-020309   2014-12-28 2015-03-28    58,010,000,000        90d FY   2016  2016-10-26 10-K
+0001193125-15-259935   2014-09-28 2015-06-27   182,214,000,000       272d Q3   2015  2015-07-22 10-Q
+0001193125-15-259935   2015-03-29 2015-06-27    49,605,000,000        90d Q3   2015  2015-07-22 10-Q
+0001193125-15-356351   2015-03-29 2015-06-27    49,605,000,000        90d FY   2015  2015-10-28 10-K
+0001628280-16-017809   2014-09-28 2015-06-27   182,214,000,000       272d Q3   2016  2016-07-27 10-Q
+0001628280-16-017809   2015-03-29 2015-06-27    49,605,000,000        90d Q3   2016  2016-07-27 10-Q
+0001628280-16-020309   2015-03-29 2015-06-27    49,605,000,000        90d FY   2016  2016-10-26 10-K
+0001193125-15-356351   2014-09-28 2015-09-26   233,715,000,000       363d FY   2015  2015-10-28 10-K
+0001193125-15-356351   2015-06-28 2015-09-26    51,501,000,000        90d FY   2015  2015-10-28 10-K
+0001628280-16-020309   2014-09-28 2015-09-26   233,715,000,000       363d FY   2016  2016-10-26 10-K
+0001628280-16-020309   2015-06-28 2015-09-26    51,501,000,000        90d FY   2016  2016-10-26 10-K
+0000320193-17-000070   2014-09-28 2015-09-26   233,715,000,000       363d FY   2017  2017-11-03 10-K
+0001193125-16-439878   2015-09-27 2015-12-26    75,872,000,000        90d Q1   2016  2016-01-27 10-Q
+0001628280-16-020309   2015-09-27 2015-12-26    75,872,000,000        90d FY   2016  2016-10-26 10-K
+0001628280-17-000717   2015-09-27 2015-12-26    75,872,000,000        90d Q1   2017  2017-02-01 10-Q
+0000320193-17-000070   2015-09-27 2015-12-26    75,872,000,000        90d FY   2017  2017-11-03 10-K
+
+--- duration histogram (in window, 2014-09 .. 2015-12) ---
+  90d:  21
+  181d:  2
+  272d:  2
+  363d:  7
+
+--- classification ---
+  60-100d (discrete quarter): 21 facts
+    end=2014-09-27 dur=90d fp=?  (Apple FY2014 Q4 piece)
+    end=2014-09-27 dur=90d fp=FY (x2)
+    end=2014-12-27 dur=90d fp=FY (x2)
+    end=2014-12-27 dur=90d fp=Q1 (x2)
+    end=2015-03-28 dur=90d fp=FY (x2)
+    end=2015-03-28 dur=90d fp=Q2 (x2)
+    end=2015-06-27 dur=90d fp=FY (x2)
+    end=2015-06-27 dur=90d fp=Q3 (x2)
+    end=2015-09-26 dur=90d fp=FY (x2)
+    end=2015-12-26 dur=90d fp=FY (x2)
+    end=2015-12-26 dur=90d fp=Q1 (x2)
+  170-200d (~Q2 YTD): 2 facts (both fp=Q2)
+  260-290d (~Q3 YTD): 2 facts (both fp=Q3)
+  340-380d (annual FY): 7 facts (all fp=FY)
+
+--- summary booleans ---
+Discrete Q1/Q2/Q3 facts (duration 60-100d) present for AAPL FY2015: YES
+YTD facts (duration ~180/~270d) present: YES
+Note: the 90d facts ending Sept-FY-end are Q4 discrete pieces tagged fp=FY
+(they appear inside the 10-K alongside the 363d annual figure).
+
+--- Part C: root-cause hypothesis ---
+
+HYPOTHESIS (ii) — bug in normalize.py, but NOT in derive_q4_rows. The bug is
+upstream in _compute_fy_end_dates / _derive_fiscal_year.
+
+Companyfacts DOES carry discrete 90-day Q1/Q2/Q3 facts for AAPL FY2015 (12 of
+them in window; fp labels Q1/Q2/Q3 from 10-Q filings AND fp=FY pieces from the
+10-K's per-quarter breakout). YTD facts (~180d / ~270d) are also present
+(4 total). So the YTD-only theory (i) is falsified at the source — discrete
+quarter facts exist.
+
+The actual failure: _compute_fy_end_dates iterates all facts with fp=='FY' and
+form in {'10-K','10-K/A'}, stores f.end indexed by f.end.year, and takes
+max() per calendar year. But AAPL's 10-K emits FIVE 90-day quarterly pieces
+with fp=FY plus the 363d annual (see Part B, accn 0001193125-15-356351 filed
+2015-10-28: rows with fp=FY ending 2014-09-27, 2014-12-27, 2015-03-28,
+2015-06-27, 2015-09-26). For calendar year 2014, the max() across those fp=FY
+ends is 2014-12-27 — but Apple's FY2014 actually ended 2014-09-27.
+
+_derive_fiscal_year then sees the Q1 fact ending 2014-12-27 and asks: is
+fy_end_dates[2014] (= 2014-12-27, the WRONG value) >= 2014-12-27? Yes — so it
+labels that Q1 piece as fiscal_year=2014. Apple's real FY2015 Q1 thus lands
+under fiscal_year=2014. By the same logic, FY2016 Q1 (end 2015-12-26) lands
+under fiscal_year=2015.
+
+Consequence: when derive_q4_rows runs for fy=2015 at accepted_cutoff=
+2015-10-28, the only row in the (fy=2015, Q1) bucket has accepted=2016-01-27
+(strictly later). Q4 derivation is skipped. Q4 only materialises at the next
+year's filings.
+
+Independent confirmation: rerunning _compute_fy_end_dates on live AAPL
+companyfacts yields:
+  {2006: 2006-09-30, 2007: 2007-09-29,
+   2008: 2008-12-27, 2009: 2009-12-26, 2010: 2010-12-25, 2011: 2011-12-31,
+   2012: 2012-12-29, 2013: 2013-12-28, 2014: 2014-12-27, 2015: 2015-12-26,
+   2016: 2016-12-31, 2017: 2017-12-31, 2018: 2018-12-29, 2019: 2019-12-28,
+   2020: 2020-09-26, 2021: 2021-09-25, 2022: 2022-09-24, 2023: 2023-09-30,
+   2024: 2024-09-28, 2025: 2025-09-27}
+
+FY2008-FY2019 entries are systematically wrong by ~3 months (the per-quarter
+fp=FY pieces dominate the max()). FY2020+ entries are correct, which matches
+Artifact 2's observed "AAPL Q4 contemporaneous from FY2021+, year-lagged
+FY2009-FY2019" boundary (the FY2020 flip likely tracks a change in either
+Apple's filing format or the SEC's fp tagging — pre-FY2020 10-Ks emit per-
+quarter pieces with fp=FY; FY2020+ do not, or no longer in a way that beats
+the 363d FY end-date in the max()).
+
+derive_q4_rows itself is logically sound; it has nothing to work with because
+upstream period-labeling sends the discrete Q1 into the wrong FY bucket.
+
+Note also: a second symptom of the same bug is the mislabeled Q1 rows visible
+in Artifact 2 (every AAPL fiscal_year's Q1 has an end_date in the NEXT
+calendar year — that "Q1" is actually the next FY's Q1). The two symptoms are
+the same defect viewed from different angles.
+
+A reasonable repair direction (NOT done in this T3a probe): in
+_compute_fy_end_dates, prefer the ANNUAL fp=FY fact (the 340-380d one) over
+the per-quarter pieces — e.g., only collect ends from facts whose
+(end - start) is in the annual window, or use min() per calendar year when
+the company's fiscal year does NOT align with the calendar year (which a
+secondary inference from Q3-end + ~91d would surface). This is out of scope
+for T3a.
