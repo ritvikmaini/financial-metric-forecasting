@@ -118,38 +118,79 @@ def test_pit_series_returns_one_row_per_period_end(
     )
 
 
-def test_pit_series_picks_latest_accepted_date_per_period_end(
+def test_pit_series_assembles_each_field_at_latest_non_null(
     conn: duckdb.DuckDBPyConnection,
     aapl_security_id: uuid.UUID,
 ) -> None:
-    """If a (fy, period, end_date) was restated and both the original and
-    restated versions are visible at as_of, only the latest accepted_date
-    version appears in the series.
+    """Field-level PIT assembly (L-INFRA-014): for each data field in
+    the synthesized series row, the value equals the latest non-null
+    value among raw rows in the same (fiscal_year, period, end_date)
+    group with accepted_date <= as_of.
+
+    This generalizes the prior row-level "latest accepted_date wins"
+    semantic to a per-field semantic that handles partial
+    re-disclosures (selected-data tables, multi-year rollforwards)
+    without nulling unrestated fields.
     """
-    # Pull all distinct (fy, period, end_date) with their max accepted_date
-    # from the table; then pull the PIT series and compare.
+    import pandas as pd
+
     as_of = dt.date(2026, 1, 1)
-    latest_in_table = conn.execute(
-        "SELECT fiscal_year, period, end_date, MAX(accepted_date) "
-        'FROM "income_statement" WHERE security_id = ? AND accepted_date <= ? '
-        "GROUP BY fiscal_year, period, end_date",
-        [str(aapl_security_id), as_of],
-    ).fetchdf()
     series = fetch_pit_series(
         conn=conn,
         table="income_statement",
         security_id=aapl_security_id,
         as_of_date=as_of,
     )
-    # Every accepted_date in the series should equal the MAX from the raw table.
-    merged = series.merge(
-        latest_in_table.rename(columns={"max(accepted_date)": "max_accepted"}),
-        on=["fiscal_year", "period", "end_date"],
-        how="inner",
+
+    raw = conn.execute(
+        "SELECT fiscal_year, period, end_date, accepted_date, "
+        "revenue, gross_profit, ebitda, ebit, net_income, eps_diluted "
+        'FROM "income_statement" '
+        "WHERE security_id = ? AND accepted_date <= ? "
+        "ORDER BY fiscal_year, period, end_date, accepted_date",
+        [str(aapl_security_id), as_of],
+    ).fetchdf()
+
+    data_fields = (
+        "revenue",
+        "gross_profit",
+        "ebitda",
+        "ebit",
+        "net_income",
+        "eps_diluted",
     )
-    assert (merged["accepted_date"] == merged["max_accepted"]).all(), (
-        "PIT series did not pick the latest accepted_date per period-end"
-    )
+
+    for _, srow in series.iterrows():
+        group = raw[
+            (raw["fiscal_year"] == srow["fiscal_year"])
+            & (raw["period"] == srow["period"])
+            & (raw["end_date"] == srow["end_date"])
+        ]
+        assert not group.empty, (
+            f"series row ({srow['fiscal_year']}, {srow['period']}, "
+            f"{srow['end_date']}) has no matching raw rows"
+        )
+        for field in data_fields:
+            non_null = group[group[field].notna()]
+            if non_null.empty:
+                assert pd.isna(srow[field]), (
+                    f"({srow['fiscal_year']}, {srow['period']}, "
+                    f"{srow['end_date']}): series {field}={srow[field]} "
+                    f"but raw group has NO non-null. Expected null."
+                )
+                continue
+            latest = non_null.sort_values("accepted_date").iloc[-1][field]
+            sval = srow[field]
+            assert not pd.isna(sval), (
+                f"({srow['fiscal_year']}, {srow['period']}, "
+                f"{srow['end_date']}): series {field}=null but raw group "
+                f"has non-null. Expected {latest}."
+            )
+            assert sval == latest, (
+                f"({srow['fiscal_year']}, {srow['period']}, "
+                f"{srow['end_date']}): series {field}={sval} but latest "
+                f"non-null in raw group = {latest}."
+            )
 
 
 # --- Consensus PIT trap ---
@@ -252,3 +293,131 @@ def test_prices_pit_one_day_shift_excludes_that_day(
     assert trading_day not in before_dates, (
         f"Prices PIT leak: {trading_day} visible at as_of={trading_day - dt.timedelta(days=1)}"
     )
+
+
+# --- L-INFRA-014: field-level PIT for partial re-disclosures ---
+
+
+def test_pit_series_partial_redisclosure_retains_omitted_field() -> None:
+    """A later filing partially re-discloses a period — it carries an
+    updated value for one field and omits others. Field-level PIT
+    assembly: omitted fields retain their last-known value; partial
+    fields update.
+
+    Pre-fix (row-level dedup by accepted_date DESC), the synthesized
+    series row inherits all fields from the partial restatement, so
+    omitted fields read null. Post-fix, each field uses its latest
+    non-null value over the group.
+
+    The fixture has many real instances of this pattern in balance
+    sheets, where 10-K selected-data tables and multi-year
+    rollforwards re-mention old periods with only cash + equity.
+    This synthetic test isolates the mechanism with three fields and
+    a partial restatement of one of them.
+    """
+    from pathlib import Path
+
+    import duckdb as _duckdb
+
+    schema_sql = (Path(__file__).parent.parent.parent / "fmf" / "data" / "schema.sql").read_text()
+    sid = uuid.uuid4()
+
+    mem = _duckdb.connect(":memory:")
+    try:
+        mem.execute(schema_sql)
+        mem.execute(
+            'INSERT INTO "securities" (security_id, symbol, cik) VALUES (?, ?, ?)',
+            [str(sid), "TEST", "0000000099"],
+        )
+        # Full original filing of FY2020: revenue=100B, net_income=20B,
+        # eps_diluted=1.50.
+        mem.execute(
+            'INSERT INTO "income_statement" '
+            "(security_id, fiscal_year, period, filing_date, accepted_date, "
+            "end_date, revenue, net_income, eps_diluted) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                str(sid),
+                2020,
+                "FY",
+                dt.date(2020, 11, 1),
+                dt.date(2020, 11, 1),
+                dt.date(2020, 9, 30),
+                100_000_000_000.0,
+                20_000_000_000.0,
+                1.50,
+            ],
+        )
+        # Partial restatement 3 years later: same (fy, period, end_date),
+        # only eps_diluted updated to 1.55. revenue and net_income are
+        # NOT restated — the filing simply doesn't include them.
+        mem.execute(
+            'INSERT INTO "income_statement" '
+            "(security_id, fiscal_year, period, filing_date, accepted_date, "
+            "end_date, revenue, net_income, eps_diluted) "
+            "VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?)",
+            [
+                str(sid),
+                2020,
+                "FY",
+                dt.date(2023, 11, 1),
+                dt.date(2023, 11, 1),
+                dt.date(2020, 9, 30),
+                1.55,
+            ],
+        )
+
+        # As-of AFTER the partial restatement: omitted fields retain
+        # the original values; the restated field updates.
+        series = fetch_pit_series(
+            conn=mem,
+            table="income_statement",
+            security_id=sid,
+            as_of_date=dt.date(2024, 1, 1),
+        )
+        assert len(series) == 1, f"expected one synthesized row per period-end, got {len(series)}"
+        row = series.iloc[0]
+        assert row["revenue"] == 100_000_000_000.0, (
+            f"revenue should retain original 100B; got {row['revenue']}. "
+            f"Partial re-disclosure dropped the field — row-level dedup bug."
+        )
+        assert row["net_income"] == 20_000_000_000.0, (
+            f"net_income should retain original 20B; got {row['net_income']}"
+        )
+        assert row["eps_diluted"] == 1.55, (
+            f"eps_diluted should update to restated 1.55; got {row['eps_diluted']}"
+        )
+        # Provenance: synthesized accepted_date = MAX in group up to as_of.
+        accepted = row["accepted_date"]
+        if not isinstance(accepted, dt.date):
+            import pandas as pd
+
+            accepted = pd.Timestamp(accepted).date()
+        assert accepted == dt.date(2023, 11, 1), (
+            f"synthesized accepted_date should be MAX in group (2023-11-01), got {accepted}"
+        )
+
+        # As-of BEFORE the partial restatement: only the original values
+        # are visible. The restatement is not yet PIT-known.
+        series_before = fetch_pit_series(
+            conn=mem,
+            table="income_statement",
+            security_id=sid,
+            as_of_date=dt.date(2022, 1, 1),
+        )
+        assert len(series_before) == 1
+        row_before = series_before.iloc[0]
+        assert row_before["revenue"] == 100_000_000_000.0
+        assert row_before["net_income"] == 20_000_000_000.0
+        assert row_before["eps_diluted"] == 1.50, (
+            f"as_of 2022 must NOT see the 2023 restatement; got "
+            f"eps_diluted={row_before['eps_diluted']}"
+        )
+        accepted_before = row_before["accepted_date"]
+        if not isinstance(accepted_before, dt.date):
+            import pandas as pd
+
+            accepted_before = pd.Timestamp(accepted_before).date()
+        assert accepted_before == dt.date(2020, 11, 1)
+    finally:
+        mem.close()
