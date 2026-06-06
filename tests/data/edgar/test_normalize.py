@@ -671,8 +671,9 @@ def test_q4_derives_at_fy_filing_for_non_calendar_fy(
 @pytest.mark.parametrize(
     "ticker, fy",
     [
-        ("AAPL", 2015),  # Late-September FY; previously year-lagged FY2009-2019.
-        ("MSFT", 2020),  # June-end FY; previously year-lagged FY2010-2024.
+        ("AAPL", 2015),  # L-INFRA-012
+        ("MSFT", 2020),  # L-INFRA-012
+        ("GWW", 2020),  # L-INFRA-013: calendar-FY regression case
     ],
     ids=lambda v: str(v),
 )
