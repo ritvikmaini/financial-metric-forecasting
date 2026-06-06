@@ -30,6 +30,7 @@ EXPECTED_TABLES: dict[str, set[str]] = {
         "period",
         "filing_date",
         "accepted_date",
+        "end_date",
         "revenue",
         "gross_profit",
         "ebitda",
@@ -43,6 +44,7 @@ EXPECTED_TABLES: dict[str, set[str]] = {
         "period",
         "filing_date",
         "accepted_date",
+        "end_date",
         "total_assets",
         "total_liabilities",
         "total_equity",
@@ -57,6 +59,7 @@ EXPECTED_TABLES: dict[str, set[str]] = {
         "period",
         "filing_date",
         "accepted_date",
+        "end_date",
         "operating_cash_flow",
         "investing_cash_flow",
         "financing_cash_flow",
@@ -121,11 +124,13 @@ def test_table_has_expected_columns(
     assert not missing, f"table {table_name} missing columns: {sorted(missing)}"
 
 
-def test_income_statement_primary_key_includes_accepted_date(
+def test_income_statement_primary_key_includes_accepted_date_and_end_date(
     conn: duckdb.DuckDBPyConnection,
 ) -> None:
-    # PIT correctness relies on (security_id, fiscal_year, period, accepted_date)
-    # being the primary key so multiple amendments coexist.
+    """PIT correctness relies on (security_id, fiscal_year, period,
+    accepted_date, end_date) as the PK so amendments and distinct
+    period-ends within the same accepted_date both coexist.
+    """
     rows = conn.execute(
         """
         SELECT constraint_column_names
@@ -135,8 +140,9 @@ def test_income_statement_primary_key_includes_accepted_date(
     ).fetchall()
     assert rows, "income_statement has no PRIMARY KEY constraint"
     pk_cols = set(rows[0][0])
-    assert "accepted_date" in pk_cols, (
-        f"income_statement primary key MUST include accepted_date so "
-        f"amended filings coexist; PIT correctness depends on this. "
-        f"Found PK cols: {pk_cols}"
-    )
+    assert (
+        "accepted_date" in pk_cols
+    ), f"income_statement PK missing accepted_date. Found: {pk_cols}"
+    assert (
+        "end_date" in pk_cols
+    ), f"income_statement PK missing end_date — schema amendment not applied. Found: {pk_cols}"

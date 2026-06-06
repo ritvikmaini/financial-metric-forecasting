@@ -48,12 +48,15 @@ def aapl_id() -> uuid.UUID:
 def aapl_filings(conn: duckdb.DuckDBPyConnection, aapl_id: uuid.UUID) -> None:
     """Three AAPL income_statement rows: FY2022, FY2023, an amended FY2023."""
     rows = [
+        # security_id, fiscal_year, period, filing_date, accepted_date, end_date,
+        # revenue, gross_profit, ebitda, ebit, net_income, eps_diluted
         (
             str(aapl_id),
             2022,
             "FY",
             dt.date(2022, 10, 28),
             dt.date(2022, 10, 28),
+            dt.date(2022, 9, 24),  # AAPL FY2022 ended 2022-09-24
             394_328_000_000.0,
             170_782_000_000.0,
             130_541_000_000.0,
@@ -67,6 +70,7 @@ def aapl_filings(conn: duckdb.DuckDBPyConnection, aapl_id: uuid.UUID) -> None:
             "FY",
             dt.date(2023, 11, 3),
             dt.date(2023, 11, 3),
+            dt.date(2023, 9, 30),  # AAPL FY2023 ended 2023-09-30
             383_285_000_000.0,
             169_148_000_000.0,
             125_820_000_000.0,
@@ -80,6 +84,7 @@ def aapl_filings(conn: duckdb.DuckDBPyConnection, aapl_id: uuid.UUID) -> None:
             "FY",
             dt.date(2023, 11, 3),
             dt.date(2024, 1, 15),
+            dt.date(2023, 9, 30),  # restated, same fiscal-year-end
             383_285_000_000.0,
             169_148_000_000.0,
             125_820_000_000.0,
@@ -89,7 +94,7 @@ def aapl_filings(conn: duckdb.DuckDBPyConnection, aapl_id: uuid.UUID) -> None:
         ),
     ]
     conn.executemany(
-        "INSERT INTO income_statement VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO income_statement VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         rows,
     )
 
@@ -274,6 +279,7 @@ def test_bulk_load_by_name_accepts_column_subset(
                 "period": "FY",
                 "filing_date": dt.date(2024, 11, 1),
                 "accepted_date": dt.date(2024, 11, 1),
+                "end_date": dt.date(2024, 9, 28),  # AAPL-style FY-end
                 "revenue": 400_000_000_000.0,
             }
         ]

@@ -70,7 +70,7 @@ def fetch_latest_as_of(
         f"SELECT DISTINCT ON (security_id) {col_list}\n"
         f'  FROM "{table}"\n'
         f" WHERE security_id = ? AND accepted_date <= ?\n"
-        f" ORDER BY security_id, accepted_date DESC, filing_date DESC"
+        f" ORDER BY security_id, accepted_date DESC, end_date DESC, filing_date DESC"
     )
     row = conn.execute(query, [str(security_id), as_of_date]).fetchone()
     if row is None:

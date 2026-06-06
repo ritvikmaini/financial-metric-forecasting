@@ -4,7 +4,15 @@
 -- point-in-time extraction logic (FMF-004 port, lands in S4) does not
 -- need to change. The key invariant: every fundamentals row carries
 -- accepted_date (the EDGAR `filed` field), and (security_id, fiscal_year,
--- period, accepted_date) is the primary key so amendments coexist.
+-- period, accepted_date, end_date) is the primary key so amendments and
+-- legitimately-distinct period-ends within the same accepted_date both
+-- coexist.
+--
+-- This file amends the S1 schema to add end_date to the PIT-table PKs
+-- (income_statement, balance_sheet, cashflow) for fiscal-calendar safety
+-- — needed because the EDGAR `fy` field can label two distinct period-end
+-- dates with the same (fy, fp, filed) tuple (e.g. AAPL Q1 FY2009/2010
+-- straddling the fiscal-year boundary).
 --
 -- DuckDB does not support cross-table foreign keys natively in versions
 -- this code targets; security_id integrity is enforced at the application
@@ -26,13 +34,14 @@ CREATE TABLE IF NOT EXISTS income_statement (
     period        TEXT    NOT NULL,
     filing_date   DATE    NOT NULL,
     accepted_date DATE    NOT NULL,
+    end_date      DATE    NOT NULL,
     revenue                       DOUBLE,
     gross_profit                  DOUBLE,
     ebitda                        DOUBLE,
     ebit                          DOUBLE,
     net_income                    DOUBLE,
     eps_diluted                   DOUBLE,
-    PRIMARY KEY (security_id, fiscal_year, period, accepted_date)
+    PRIMARY KEY (security_id, fiscal_year, period, accepted_date, end_date)
 );
 
 CREATE TABLE IF NOT EXISTS balance_sheet (
@@ -41,6 +50,7 @@ CREATE TABLE IF NOT EXISTS balance_sheet (
     period        TEXT    NOT NULL,
     filing_date   DATE    NOT NULL,
     accepted_date DATE    NOT NULL,
+    end_date      DATE    NOT NULL,
     total_assets         DOUBLE,
     total_liabilities    DOUBLE,
     total_equity         DOUBLE,
@@ -48,7 +58,7 @@ CREATE TABLE IF NOT EXISTS balance_sheet (
     current_assets       DOUBLE,
     current_liabilities  DOUBLE,
     long_term_debt       DOUBLE,
-    PRIMARY KEY (security_id, fiscal_year, period, accepted_date)
+    PRIMARY KEY (security_id, fiscal_year, period, accepted_date, end_date)
 );
 
 CREATE TABLE IF NOT EXISTS cashflow (
@@ -57,12 +67,13 @@ CREATE TABLE IF NOT EXISTS cashflow (
     period        TEXT    NOT NULL,
     filing_date   DATE    NOT NULL,
     accepted_date DATE    NOT NULL,
+    end_date      DATE    NOT NULL,
     operating_cash_flow  DOUBLE,
     investing_cash_flow  DOUBLE,
     financing_cash_flow  DOUBLE,
     capital_expenditure  DOUBLE,
     free_cash_flow       DOUBLE,
-    PRIMARY KEY (security_id, fiscal_year, period, accepted_date)
+    PRIMARY KEY (security_id, fiscal_year, period, accepted_date, end_date)
 );
 
 CREATE TABLE IF NOT EXISTS analyst_estimates (
