@@ -69,6 +69,7 @@ module = [
     "fmf.features.point_in_time",
     "fmf.features.derived",
     "fmf.features.feature_registry",
+    "fmf.features.builtin_features",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true

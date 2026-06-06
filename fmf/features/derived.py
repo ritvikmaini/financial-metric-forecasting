@@ -57,13 +57,14 @@ def compute_revenue_ttm(
 ) -> float | None:
     """Trailing 12-month revenue.
 
-    Strategy:
+    Thin wrapper around _ttm_from_series so revenue shares its TTM code
+    path with other flow fields (net_income, ebit, gross_profit,
+    operating_cash_flow, capital_expenditure). Strategy:
     1. If a visible FY row has end_date within 366 days of as_of, return
        its revenue (= latest annual).
     2. Else sum the 4 most recent visible quarters by end_date AND
-       verify they span ~270d (consecutive). If the span check fails
-       (a null quarter forced us to a non-consecutive 5th-oldest), return
-       None — a bogus sum is worse than a missing value.
+       verify they span ~270d (consecutive) AND the latest is within
+       ~366d of as_of. If any guard fails, return None.
     3. Else None.
     """
     series = fetch_pit_series(
@@ -72,19 +73,32 @@ def compute_revenue_ttm(
         security_id=security_id,
         as_of_date=as_of_date,
     )
-    if series.empty:
-        return None
+    return _ttm_from_series(series, "revenue", as_of_date)
 
+
+def _ttm_from_series(
+    series: pd.DataFrame,
+    field: str,
+    as_of_date: dt.date,
+) -> float | None:
+    """TTM for any flow field.
+
+    Same logic as compute_revenue_ttm: prefer latest visible annual
+    within 366d; else 4 consecutive quarters by end_date (200-320d span)
+    with the latest within 366d of as_of. Both load-bearing — see
+    compute_revenue_ttm docstring for the trap each guard prevents.
+    """
+    if series.empty or field not in series.columns:
+        return None
     fy_rows = series[series["period"] == "FY"]
     if not fy_rows.empty:
         latest_fy = fy_rows.sort_values("end_date").iloc[-1]
         latest_fy_end = _to_date(latest_fy["end_date"])
         if (as_of_date - latest_fy_end).days <= 366:
-            v = latest_fy.get("revenue")
+            v = latest_fy.get(field)
             if v is not None and not _isna(v):
                 return float(v)
-
-    q_rows = series[series["period"].isin(_QUARTERS)].dropna(subset=["revenue"])
+    q_rows = series[series["period"].isin(_QUARTERS)].dropna(subset=[field])
     if len(q_rows) < 4:
         return None
     last_4 = q_rows.sort_values("end_date", ascending=False).head(4)
@@ -92,15 +106,35 @@ def compute_revenue_ttm(
     span_days = (end_dates[-1] - end_dates[0]).days
     if not (_TTM_QUARTER_SPAN_MIN_DAYS <= span_days <= _TTM_QUARTER_SPAN_MAX_DAYS):
         return None
-    # Recency guard: even with 4 consecutive quarters, the latest one
-    # must be within ~1 year of as_of. JPM has 51 non-null quarterly
-    # revenue rows from FY2009-FY2014 in the fixture (quarterly
-    # Revenues go null FY2018+, per L-INFRA-003); without this guard,
-    # an as_of in 2027 finds a consecutive 2013 Q1-Q4 window and
-    # silently returns a 13-year-stale TTM.
     if (as_of_date - end_dates[-1]).days > _TTM_QUARTER_RECENCY_MAX_DAYS:
         return None
-    return float(last_4["revenue"].sum())
+    return float(last_4[field].sum())
+
+
+def _yoy_growth_from_series(
+    series: pd.DataFrame,
+    field: str,
+) -> float | None:
+    """YoY growth for any field. Period-aligned: FY_n vs FY_{n-1}.
+
+    Quarter-windowed fallback omitted — kept in
+    compute_revenue_yoy_growth for revenue's specialized case. None of
+    the 9 fixture tickers reach the fallback organically.
+    """
+    if series.empty or field not in series.columns:
+        return None
+    fy_rows = (
+        series[series["period"] == "FY"]
+        .dropna(subset=[field])
+        .sort_values("end_date", ascending=False)
+    )
+    if len(fy_rows) >= 2:
+        latest = float(fy_rows.iloc[0][field])
+        prior = float(fy_rows.iloc[1][field])
+        if prior == 0:
+            return None
+        return (latest - prior) / prior
+    return None
 
 
 def compute_revenue_yoy_growth(
