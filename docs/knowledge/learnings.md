@@ -150,3 +150,23 @@ Row count post-augment: 9 securities (matches pre-augment; no duplicates).
 **Date:** 2026-06-06
 
 **Status:** Ported pattern; reproduced on public data.
+
+### L-INFRA-012 — Non-calendar-FY 10-K emits quarterly comparatives tagged fp=FY; FY-end determination needs a duration+start gate
+
+**Tag:** `[public-data finding]`
+
+**Claim:** Non-calendar-fiscal-year filers (AAPL, MSFT, JNJ, SNOW in our universe) emit each 10-K's quarterly comparative pieces (Q1/Q2/Q3 of the fiscal year being reported, ~90 days each) with `fp='FY'` in the XBRL feed, because those quarters ARE within the fiscal year being reported. A naive FY-end determination that takes `max(end)` over all fp=FY 10-K facts per calendar year picks the latest quarter end_date in that calendar year — for AAPL, the Q1-of-next-fiscal-year end (Dec) instead of the genuine FY-end (Sept). The wrong FY-end cascades through `_derive_fiscal_year`, mislabeling Q1 facts into the prior fiscal_year, and `derive_q4_rows` then can't find Q1/Q2/Q3 in the target FY bucket at the FY filing's accepted_date, so Q4 only emerges via the NEXT FY's comparatives — a year-lagged Q4.
+
+The fix is a duration-and-start gate on which facts contribute to FY-end determination: `start is not None` (excludes balance-sheet instants, which have no duration to disambiguate and can carry fp=FY at the FY-end too) AND `340 <= (end - start + 1) <= 380` (the existing `_ANNUAL_DAYS_MIN/MAX` window, restricting to genuine annual flow facts). After the fix, only the real ~365-day annual fact contributes per calendar year, FY-end dates are correct, Q1/Q2/Q3 are correctly labeled, and Q4 derives contemporaneously with the FY filing.
+
+**Scope:** Non-calendar-FY tickers across their year-lagged ranges. From T3a artifact 2:
+- AAPL: year-lagged FY2009-2019, contemporaneous FY2021+.
+- MSFT: year-lagged FY2010-2024.
+- JNJ: year-lagged FY2010-2023.
+- SNOW: year-lagged FY2020-2023.
+
+Calendar-FY tickers (ZTS, GWW, HSY, JPM, GOOGL) are unaffected because the annual's December end is naturally the latest in its calendar year, so even with quarterly comparatives polluting the fp=FY pool, max(end) per calendar year still resolves to the correct annual end.
+
+**Source:** `fmf/data/edgar/normalize.py::_compute_fy_end_dates` (fix commit `f2d1e28`). Tested at `tests/data/edgar/test_normalize.py::test_q4_derives_at_fy_filing_for_non_calendar_fy` parametrizations `AAPL_FY2015`, `MSFT_FY2020`, `JNJ_FY_ending_2021_01_03` (synthetic-regression commit `f466681`) and `::test_q4_fixture_regression_emits_at_fy_filing` parametrizations `AAPL/2015`, `MSFT/2020` (fixture-regression commit `1fd89d7`).
+
+**Diagnostic artifacts:** `reports/aapl_fy2015_q4_diagnosis.txt` (root-cause investigation), `reports/quarterly_period_coverage.txt` (post-fix coverage map across 9 tickers).
