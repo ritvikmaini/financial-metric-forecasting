@@ -10,6 +10,7 @@ dependencies = [
     "duckdb>=1.0.0",
     "httpx>=0.28.1",
     "yfinance>=1.4.1",
+    "pyarrow>=17.0.0",
 ]
 
 [project.optional-dependencies]
@@ -70,7 +71,10 @@ module = [
     "fmf.features.derived",
     "fmf.features.feature_registry",
     "fmf.features.builtin_features",
+    "fmf.features.as_of_grid",
+    "fmf.features.matrix_builder",
     "scripts.coverage_audit",
+    "scripts.build_feature_matrix",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true

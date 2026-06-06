@@ -30,6 +30,7 @@ reports/*
 !reports/scoreboard_snapshots/.gitkeep
 !reports/noise_floor.json
 !reports/coverage_audit.json
+!reports/feature_matrix.parquet
 
 # Editor
 .idea/
