@@ -82,3 +82,71 @@ All paths are relative to repo root.
 **Date:** 2026-06-06
 
 **Status:** Reproduced on public data; load-bearing for the Q4 PIT-correct derivation.
+
+### L-INFRA-005 — Consensus from yfinance is a snapshot, not history
+
+**Tag:** `[methodology, ported]`
+
+**Claim:** yfinance exposes only current EPS / revenue estimates per period (`earnings_estimate`, `revenue_estimate` indexes are relative labels `0q`, `+1q`, `0y`, `+1y`). Historical revisions are not available. We store each pull as a row with `pulled_at = now()`; the PIT proxy is `pulled_at <= as_of_date`, treating the snapshot as if it were known at the time it was pulled. This is weaker than IBES-style historical consensus and flows into the README's honest-framing note: the benchmark leans on naive and statistical baselines (random walk, AR(1), seasonal naive, last-year), with consensus as a caveated secondary reference.
+
+**Mechanism:** `fmf/data/yfinance/consensus.py::ingest_consensus_snapshot` records `pulled_at` per row. `_period_label_to_target_date` anchors labels to `pulled_at.date()` using calendar quarter / year ends (intentionally not fiscal-calendar-aware; yfinance's labels are calendar-quarter-based even for non-calendar filers). Mapping is regression-tested: `0q → end-of-current-quarter`, `+1q → end-of-next-quarter`, `0y → Dec 31 anchor.year`, `+1y → Dec 31 anchor.year + 1`.
+
+**Source:**
+- `fmf/data/yfinance/consensus.py` (commit `6e56b1c`)
+- `tests/data/yfinance/test_consensus.py::test_period_label_mapping_anchored_to_pulled_at` (commit `6e56b1c`)
+- Sample data: AAPL_earnings_estimate.csv and AAPL_revenue_estimate.csv carry 4 rows each, populating 4 EPS + 4 revenue estimate rows per pull.
+
+**Date:** 2026-06-06
+
+**Status:** Ported limitation; documented in module docstring + will be carried into the README.
+
+### L-INFRA-006 — Yahoo Finance returns split-adjusted OHLC at source; auto_adjust=False only toggles dividends
+
+**Tag:** Public-data finding
+
+**Claim:** **Every yfinance path returns split-adjusted Close on the wire**, regardless of which retrieval function or flags are used. `yf.download(..., auto_adjust=False)`, `yf.download(..., auto_adjust=False, multi_level_index=False)`, `yf.Ticker.history(..., auto_adjust=False, back_adjust=False)`, and the raw chart endpoint all return Close=$43.33 on 2019-06-03 for AAPL — already split-adjusted for the Aug 31, 2020 4:1 split. The `auto_adjust` flag only toggles the dividend layer; split adjustment is baked into Yahoo's stored series. Truly raw historical Close (~$173 on 2019-06-03) only exists by un-applying splits post-hoc.
+
+**Mechanism:** `fmf/data/yfinance/_client.py::fetch_prices` live path uses `yf.Ticker(ticker).history(auto_adjust=False, back_adjust=False)` then iterates the splits index. For each row, multiplies Open/High/Low/Close by `prod(splits with split_date STRICTLY > row_date)` and divides Volume by the same factor. `Adj Close` is left untouched (Yahoo's back-adjusted-for-dividends-and-splits reference). **Critical correctness detail:** date-only comparison when matching splits to row dates. yfinance's split index carries intraday timestamps (09:30 EDT) while the row index is midnight; naive timestamp comparison falsely lumps a split-effective date with its pre-split history and corrupts the un-split factor.
+
+**Verification:** Spot-check from the committed fixture:
+- AAPL 2019-06-03: close=173.30, adj_close=41.45, ratio=4.18 (matches public reference for the actual closing price)
+- AAPL 2020-08-28 (last day before 4:1 split): close=499.23 (matches public reference)
+- AAPL 2020-08-31 (split-effective day): close=129.04 (matches public reference)
+
+**Regression test:** `tests/data/yfinance/test_prices.py::test_auto_adjust_false_close_differs_from_adj_close` asserts `close > adj_close * 3.5` on AAPL 2019-06-03. Will catch silent regressions in either the yfinance behavior or our un-split transform.
+
+**Source:**
+- `fmf/data/yfinance/_client.py` un-split implementation (commit `2656fe0`)
+- `tests/fixtures/sample_yfinance/AAPL_prices.csv` regenerated with verified raw Close (commit `2656fe0`)
+- `tests/data/yfinance/test_prices.py` (commit `36cbdb0`)
+
+**Date:** 2026-06-06
+
+**Status:** Reproduced on public data.
+
+### L-INFRA-007 — Securities metadata is an UPDATE, not an INSERT, in a multi-source ingest
+
+**Tag:** `[methodology, ported]`
+
+**Claim:** When a securities row already exists from an earlier source (S2 EDGAR ingest creates rows by `(security_id, symbol, cik)`), subsequent sources should UPDATE the existing row by primary-key match, not INSERT a new one. This avoids duplicate rows that would corrupt JOINs across data layers and double-count tickers in coverage scans. `fmf/data/yfinance/securities.py::update_securities_metadata` does `UPDATE securities SET ... WHERE cik = ?` and tolerates missing fields in `yf.Ticker.info` (one bad field doesn't fail the whole row; one bad ticker doesn't fail the whole run).
+
+**Mechanism:** Builds the SET clause dynamically from whichever info fields are present (sector, industry, country, exchange). If `fetch_info` raises (missing fixture, network error, ticker delisted), logs a warning and returns without touching the row.
+
+**Verification:** T7 live ingest populated all 9 anchor tickers with sector + country + exchange:
+- AAPL/MSFT: Technology / United States / NMS
+- GOOGL: Communication Services / United States / NMS
+- JNJ/ZTS: Healthcare / United States / NYQ
+- JPM: Financial Services / United States / NYQ
+- HSY: Consumer Defensive / United States / NYQ
+- GWW: Industrials / United States / NYQ
+- SNOW: Technology / United States / NYQ
+
+Row count post-augment: 9 securities (matches pre-augment; no duplicates).
+
+**Source:**
+- `fmf/data/yfinance/securities.py` (commit `9115b98`)
+- `tests/data/yfinance/test_securities.py::test_update_does_not_insert_duplicate` (commit `9115b98`)
+
+**Date:** 2026-06-06
+
+**Status:** Ported pattern; reproduced on public data.
