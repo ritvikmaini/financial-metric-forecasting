@@ -666,3 +666,76 @@ def test_q4_derives_at_fy_filing_for_non_calendar_fy(
         f"{label}: Q4 revenue {q4_revenue} != FY-Q1-Q2-Q3={expected_q4} "
         f"(rel tol 0.1%). derive_q4_rows summed the wrong inputs."
     )
+
+
+@pytest.mark.parametrize(
+    "ticker, fy",
+    [
+        ("AAPL", 2015),  # Late-September FY; previously year-lagged FY2009-2019.
+        ("MSFT", 2020),  # June-end FY; previously year-lagged FY2010-2024.
+    ],
+    ids=lambda v: str(v),
+)
+def test_q4_fixture_regression_emits_at_fy_filing(ticker: str, fy: int) -> None:
+    """L-INFRA-012 fixture-side regression.
+
+    The synthetic test exercises the no-prior-FY-end-in-map branch
+    (the test parametrizations don't include a prior-year genuine
+    annual fact). This locks the real-data branch where the prior
+    FY-end IS present in the map but earlier than end.year of the
+    affected Q1 fact. After the _compute_fy_end_dates fix, an
+    affected ticker's Q4 in a previously-year-lagged fiscal_year
+    must appear in mini.duckdb with accepted_date equal to that FY's
+    10-K filing, not a year later via the next FY's comparative.
+
+    Assertion: MIN(accepted_date) of Q4 row(s) for (ticker, fy) ==
+    MIN(accepted_date) of FY row(s) for the same (ticker, fy).
+    """
+    from pathlib import Path
+
+    import duckdb
+
+    fixture = Path(__file__).parents[2] / "fixtures" / "mini.duckdb"
+    if not fixture.exists():
+        pytest.skip("fixture not built yet")
+
+    conn = duckdb.connect(str(fixture), read_only=True)
+    try:
+        sid_row = conn.execute(
+            'SELECT security_id FROM "securities" WHERE symbol = ?', [ticker]
+        ).fetchone()
+        if sid_row is None:
+            pytest.skip(f"{ticker} missing from fixture")
+        sid = str(sid_row[0])
+
+        fy_filed = conn.execute(
+            'SELECT MIN(accepted_date) FROM "income_statement" '
+            "WHERE security_id = ? AND period = ? AND fiscal_year = ? "
+            "AND revenue IS NOT NULL",
+            [sid, "FY", fy],
+        ).fetchone()
+        assert fy_filed is not None and fy_filed[0] is not None, (
+            f"{ticker} FY{fy} missing from fixture"
+        )
+        fy_filed_date = fy_filed[0]
+
+        q4_filed = conn.execute(
+            'SELECT MIN(accepted_date) FROM "income_statement" '
+            "WHERE security_id = ? AND period = ? AND fiscal_year = ? "
+            "AND revenue IS NOT NULL",
+            [sid, "Q4", fy],
+        ).fetchone()
+        assert q4_filed is not None and q4_filed[0] is not None, (
+            f"{ticker} Q4 FY{fy} missing from fixture — "
+            f"L-INFRA-012 fix may have regressed or the rebuild "
+            f"did not pick up the new normalize logic."
+        )
+        q4_filed_date = q4_filed[0]
+
+        assert q4_filed_date == fy_filed_date, (
+            f"{ticker} Q4 FY{fy} accepted_date {q4_filed_date} != "
+            f"FY{fy} 10-K filing date {fy_filed_date}. "
+            f"L-INFRA-012 regression: Q4 is year-lagged again."
+        )
+    finally:
+        conn.close()
