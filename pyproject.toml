@@ -87,6 +87,7 @@ module = [
     "fmf.equity.forecasting.models._tirex_preprocessing",
     "fmf.equity.forecasting.models._simplex",
     "fmf.equity.forecasting.models.meta_learner",
+    "fmf.equity.forecasting.evaluation.metrics",
     "scripts.coverage_audit",
     "scripts.build_feature_matrix",
 ]
