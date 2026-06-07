@@ -26,6 +26,11 @@ from fmf.equity.forecasting.evaluation._target_lookup import (
     last_fy_actual,
     next_fy_target,
 )
+from fmf.equity.forecasting.evaluation.prediction_cache import (
+    PredictionCache,
+    data_fingerprint,
+    derive_cache_key,
+)
 from fmf.equity.forecasting.models.baselines import (
     fit_ar1_pooled,
     last_year_actual_baseline,
@@ -53,6 +58,8 @@ GRID_FUNCTIONS = {
     "fiscal_year_end": fiscal_year_end_grid,
     "quarterly": quarterly_grid,
 }
+
+_CACHE_MODEL_NAMES = ("LightGBM", "TiRex", "NaiveLastYear", "Ensemble")
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +101,8 @@ class FoldDiagnostics:
     meta_train_source_folds: frozenset[int] | None = None
     ar1_phi: float | None = None
     ar1_train_pairs_n: int | None = None
+    cache_hits: int | None = None
+    cache_total: int | None = None
 
 
 @dataclass
@@ -124,10 +133,14 @@ class ExpandingWindowBacktester:
         config: BacktesterConfig,
         *,
         tirex_backend: TirexBackend | None = None,
+        cache: PredictionCache | None = None,
     ) -> None:
         self._conn = conn
         self._config = config
         self._tirex = TirexForecaster(backend=tirex_backend) if tirex_backend is not None else None
+        self._cache = cache
+        self._fingerprint_cache: dict[uuid.UUID, str] = {}
+        self._config_flags_hash: str | None = None
 
     def run(self, security_ids: list[uuid.UUID]) -> BacktestResult:
         folds = generate_folds(self._config.start_year, self._config.end_year)
@@ -164,6 +177,23 @@ class ExpandingWindowBacktester:
         result.fold_diagnostics[fold.fold_idx] = diag
         if fold.is_seed or len(train_rows) < self._config.min_train_samples or len(test_rows) == 0:
             return
+        # Cache probe: all-or-nothing per fold. If every (test_row, model_name)
+        # entry is already cached, skip the compute path entirely and emit
+        # BacktestRow records from cached values. Any miss falls through to the
+        # full compute path, which writes all entries back at fold end.
+        per_row_keys: list[dict[str, str]] | None = None
+        if self._cache is not None:
+            per_row_keys = self._build_cache_keys(test_rows)
+            all_keys = [k for keys in per_row_keys for k in keys.values()]
+            diag.cache_total = len(all_keys)
+            hits = sum(1 for k in all_keys if self._cache.contains(k))
+            diag.cache_hits = hits
+            if hits == diag.cache_total and diag.cache_total > 0:
+                for i, (_, r) in enumerate(test_rows.iterrows()):
+                    result.rows.append(
+                        self._make_backtest_row_from_cache(fold=fold, row=r, keys=per_row_keys[i])
+                    )
+                return
         # Build features (per-fold, train rows only -> per-fold ranking).
         train_X = self._build_features(train_rows)
         test_X = self._build_features(test_rows)
@@ -223,6 +253,7 @@ class ExpandingWindowBacktester:
             else frozenset()
         )
         # Test predictions.
+        per_row_preds: list[tuple[float | None, float | None, float | None, float | None]] = []
         for i, (_, r) in enumerate(test_rows.iterrows()):
             lp = float(lgbm_test[i])
             tp = float(tirex_test[i])
@@ -242,6 +273,10 @@ class ExpandingWindowBacktester:
             sn_pred = seasonal_naive(prev, season_length=1)
             ly_pred = last_year_actual_baseline(prev)
             ar1_pred = predict_ar1(phi, prev)
+            lp_out = lp if np.isfinite(lp) else None
+            tp_out = tp if np.isfinite(tp) else None
+            n_out = None if not np.isfinite(n) else n
+            per_row_preds.append((lp_out, tp_out, n_out, ens))
             result.rows.append(
                 BacktestRow(
                     fold_idx=fold.fold_idx,
@@ -254,9 +289,9 @@ class ExpandingWindowBacktester:
                     target_accepted_date=r["target_accepted_date"],
                     horizon_days=int(r["horizon_days"]),
                     target_value=float(r["target_value"]),
-                    naive_baseline=None if not np.isfinite(n) else n,
-                    lgbm_pred=lp if np.isfinite(lp) else None,
-                    tirex_pred=tp if np.isfinite(tp) else None,
+                    naive_baseline=n_out,
+                    lgbm_pred=lp_out,
+                    tirex_pred=tp_out,
                     ensemble_pred=ens,
                     ensemble_source=source,
                     yf_consensus_snapshot=yf_consensus,
@@ -266,6 +301,87 @@ class ExpandingWindowBacktester:
                     ar1_pred=ar1_pred,
                 )
             )
+        # Cache write-through: at fold end, batch all four-model entries per
+        # test row. Only fires when cache is wired AND we ran the compute path.
+        if self._cache is not None and per_row_keys is not None:
+            entries: list[tuple[str, float | None]] = []
+            for i, preds in enumerate(per_row_preds):
+                keys = per_row_keys[i]
+                lp_v, tp_v, n_v, ens_v = preds
+                entries.append((keys["LightGBM"], lp_v))
+                entries.append((keys["TiRex"], tp_v))
+                entries.append((keys["NaiveLastYear"], n_v))
+                entries.append((keys["Ensemble"], ens_v))
+            self._cache.put_batch(entries)
+
+    def _build_cache_keys(self, test_rows: pd.DataFrame) -> list[dict[str, str]]:
+        """Per test row, derive a key for each of the four model_names. Caches
+        the config_flags_hash and per-security data_fingerprint on the instance.
+        """
+        from fmf.research.fmf_runs import config_flags_hash
+
+        if self._config_flags_hash is None:
+            cfg_dict = {
+                k: list(v) if isinstance(v, tuple) else v
+                for k, v in {
+                    k: getattr(self._config, k) for k in self._config.__dataclass_fields__
+                }.items()
+            }
+            self._config_flags_hash = config_flags_hash(cfg_dict)
+        fingerprints: dict[uuid.UUID, str] = {}
+        for sid in test_rows["security_id"].unique():
+            if sid not in self._fingerprint_cache:
+                self._fingerprint_cache[sid] = data_fingerprint(self._conn, sid)
+            fingerprints[sid] = self._fingerprint_cache[sid]
+        per_row_keys: list[dict[str, str]] = []
+        for _, r in test_rows.iterrows():
+            row_keys: dict[str, str] = {}
+            for mn in _CACHE_MODEL_NAMES:
+                row_keys[mn] = derive_cache_key(
+                    config_flags_hash=self._config_flags_hash,
+                    fingerprint=fingerprints[r["security_id"]],
+                    security_id=r["security_id"],
+                    as_of_date=r["as_of_date"],
+                    metric=self._config.metric,
+                    model_name=mn,
+                )
+            per_row_keys.append(row_keys)
+        return per_row_keys
+
+    def _make_backtest_row_from_cache(
+        self, *, fold: FoldSpec, row: pd.Series, keys: dict[str, str]
+    ) -> BacktestRow:
+        """Build a BacktestRow on a full-cache-hit fold. AR(1) phi was not
+        fit on this path so ar1_pred is None; rw/sn/ly collapse to the cached
+        naive_baseline per S11 Decision 1.
+        """
+        assert self._cache is not None
+        lp = self._cache.get(keys["LightGBM"])
+        tp = self._cache.get(keys["TiRex"])
+        n = self._cache.get(keys["NaiveLastYear"])
+        ens = self._cache.get(keys["Ensemble"])
+        return BacktestRow(
+            fold_idx=fold.fold_idx,
+            cutoff=fold.cutoff,
+            cutoff_label=fold.cutoff_label,
+            security_id=row["security_id"],
+            symbol=row["symbol"],
+            as_of_date=row["as_of_date"],
+            target_fy=int(row["target_fy"]),
+            target_accepted_date=row["target_accepted_date"],
+            horizon_days=int(row["horizon_days"]),
+            target_value=float(row["target_value"]),
+            naive_baseline=n,
+            lgbm_pred=lp,
+            tirex_pred=tp,
+            ensemble_pred=ens,
+            ensemble_source="cache_hit",
+            yf_consensus_snapshot=self._fetch_yf_snapshot(row),
+            rw_pred=n,
+            sn_pred=n,
+            ly_pred=n,
+            ar1_pred=None,
+        )
 
     def _gather_realized_oos(self, result: BacktestResult, *, cutoff: dt.date) -> pd.DataFrame:
         if not result.rows:

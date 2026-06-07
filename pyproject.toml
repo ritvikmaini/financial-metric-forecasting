@@ -108,6 +108,7 @@ module = [
     "fmf.equity.forecasting.models._simplex",
     "fmf.equity.forecasting.models.meta_learner",
     "fmf.equity.forecasting.evaluation.metrics",
+    "fmf.equity.forecasting.evaluation.prediction_cache",
     "fmf.pipeline.dataset_builder",
     "fmf.pipeline.forecast_runner",
     "fmf.pipeline.quality_checks",

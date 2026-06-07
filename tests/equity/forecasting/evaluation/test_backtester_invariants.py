@@ -1,6 +1,6 @@
-"""S10 backtester correctness invariants — purge, no-overlap, horizon,
+"""S10 backtester correctness invariants - purge, no-overlap, horizon,
 Q4-non-trivial, comparative-trap, per-fold cap, OOS meta training,
-cold-start.
+cold-start. S14 appends two cache invariants.
 
 These are the regression gates. Each one targets a specific class of bug
 the close-read review surfaced; their failure modes describe the bug at
@@ -9,15 +9,24 @@ its actual surface rather than a downstream symptom.
 
 from __future__ import annotations
 
+import datetime as dt
+import uuid
 from dataclasses import dataclass
 
+import duckdb
 import numpy as np
+import pandas as pd
 import pytest
 
 from fmf.equity.forecasting.evaluation._backtester_config import BacktesterConfig
 from fmf.equity.forecasting.evaluation.backtester import (
     BacktestResult,
     ExpandingWindowBacktester,
+)
+from fmf.equity.forecasting.evaluation.prediction_cache import (
+    PredictionCache,
+    data_fingerprint,
+    derive_cache_key,
 )
 from tests.equity.forecasting.evaluation._fixture_helpers import (
     fixture_conn,
@@ -302,3 +311,102 @@ def test_ar1_fit_fires_once_per_scored_fold(monkeypatch) -> None:
     assert len(calls) == scored, (
         f"fit_ar1_pooled fired {len(calls)} times across {scored} scored folds; expected 1:1."
     )
+
+
+@pytest.mark.slow
+def test_cache_miss_when_data_fingerprint_changes(tmp_path) -> None:
+    """Cardinal invariant 12: cache MUST miss when underlying data changes
+    even if config + coordinate are identical. Stale entries propagating into
+    S15 / S17 are the failure mode the close-read called out."""
+    conn = duckdb.connect(":memory:")
+    conn.execute(
+        'CREATE TABLE "income_statement" ('
+        "security_id UUID, fiscal_year INTEGER, period TEXT, "
+        "accepted_date DATE, end_date DATE, eps_diluted DOUBLE)"
+    )
+    conn.execute('CREATE TABLE "prices" (security_id UUID, date DATE, close DOUBLE)')
+    sid = uuid.UUID("00000000-0000-0000-0000-000000000001")
+    conn.execute(
+        'INSERT INTO "income_statement" VALUES (?, ?, ?, ?, ?, ?)',
+        [str(sid), 2023, "FY", dt.date(2023, 11, 3), dt.date(2023, 9, 30), 6.13],
+    )
+    fp_before = data_fingerprint(conn, sid)
+    cfg_hash = "abc123"
+    key_before = derive_cache_key(
+        config_flags_hash=cfg_hash,
+        fingerprint=fp_before,
+        security_id=sid,
+        as_of_date=dt.date(2024, 5, 15),
+        metric="eps_diluted",
+        model_name="LightGBM",
+    )
+    cache = PredictionCache(tmp_path / "cache.db")
+    try:
+        cache.put_batch([(key_before, 6.50)])
+        conn.execute(
+            'INSERT INTO "income_statement" VALUES (?, ?, ?, ?, ?, ?)',
+            [str(sid), 2024, "FY", dt.date(2024, 11, 1), dt.date(2024, 9, 28), 6.72],
+        )
+        fp_after = data_fingerprint(conn, sid)
+        assert fp_after != fp_before
+        key_after = derive_cache_key(
+            config_flags_hash=cfg_hash,
+            fingerprint=fp_after,
+            security_id=sid,
+            as_of_date=dt.date(2024, 5, 15),
+            metric="eps_diluted",
+            model_name="LightGBM",
+        )
+        assert key_after != key_before
+        assert cache.get(key_after) is None
+        assert cache.get(key_before) == 6.50
+    finally:
+        cache.close()
+
+
+@pytest.mark.slow
+def test_with_cache_predictions_match_without_cache(tmp_path) -> None:
+    """Cardinal invariant 13: with-cache and without-cache backtester runs
+    must produce IDENTICAL predictions row-for-row. Pins the user's
+    correctness gate: the cache is an optimization, not a result mutation."""
+    cfg = BacktesterConfig(
+        metric="eps_diluted",
+        start_year=2020,
+        end_year=2021,
+        grid_strategy="filing_dates",
+        feature_ids=("revenue_ttm", "gross_margin"),
+        min_train_samples=10,
+        meta_min_train=8,
+    )
+    conn1 = fixture_conn()
+    try:
+        r1 = (
+            ExpandingWindowBacktester(conn1, cfg, tirex_backend=StubTirexBackend())
+            .run(two_anchor_ids(conn1))
+            .to_frame()
+        )
+    finally:
+        conn1.close()
+    cache = PredictionCache(tmp_path / "cache.db")
+    conn2 = fixture_conn()
+    try:
+        r2 = (
+            ExpandingWindowBacktester(conn2, cfg, tirex_backend=StubTirexBackend(), cache=cache)
+            .run(two_anchor_ids(conn2))
+            .to_frame()
+        )
+    finally:
+        conn2.close()
+        cache.close()
+    cols = [
+        "fold_idx",
+        "as_of_date",
+        "target_fy",
+        "lgbm_pred",
+        "tirex_pred",
+        "ensemble_pred",
+        "naive_baseline",
+    ]
+    r1_sorted = r1.sort_values(["fold_idx", "security_id", "as_of_date"]).reset_index(drop=True)
+    r2_sorted = r2.sort_values(["fold_idx", "security_id", "as_of_date"]).reset_index(drop=True)
+    pd.testing.assert_frame_equal(r1_sorted[cols], r2_sorted[cols])

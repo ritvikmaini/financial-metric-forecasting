@@ -303,3 +303,18 @@ The correct PIT semantic is field-level: for each field, the latest non-null val
 **Reproducer:**
 - `tests/research/test_fmf_runs.py::test_record_run_is_idempotent_returns_false`
 - `tests/research/test_fmf_runs.py::test_verify_flags_config_drift`
+
+### L-EVAL-S14-001 - Four-axis prediction cache key
+
+**Tag:** [methodology, ported]
+
+**Claim:** S14 ships a SQLite prediction cache at `reports/prediction_cache.db`. The cache key has four axes -- CACHE_VERSION (manual bump on prediction-output-changing code), config_flags_hash (from S13), per-security data_fingerprint over (row_count, MAX accepted_date, MAX end_date) of income_statement plus (row_count, MAX date) of prices, and the (security_id, as_of_date, metric, model_name) coordinate. Two runs with identical config but a rebuilt fixture MUST miss the cache; that gate is the difference between a memoization and a silent staleness propagation into the S15 noise-floor and S17 admission-gate that consume these cached predictions.
+
+Wiring is all-or-nothing per fold. The orchestrator probes every test row's cache_key across all four model names (LightGBM, TiRex, NaiveLastYear, Ensemble) upfront. Full hit -> skip the compute path entirely. Any miss -> run the full S10 compute path unchanged, then write all entries back at fold end via batched commit. Mixed hit / miss never produces partial fits. The orthogonality test (`test_with_cache_predictions_match_without_cache`) asserts bit-for-bit prediction equality between with-cache and without-cache runs.
+
+**Source:** `fmf/equity/forecasting/evaluation/prediction_cache.py`. Decisions 1, 2, 3, 5, 7 in `plans/2026-06-07-s14-prediction-cache.md`.
+
+**Reproducer:**
+- `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_cache_miss_when_data_fingerprint_changes` -- pins the data-axis invalidation.
+- `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_with_cache_predictions_match_without_cache` -- pins the orthogonality gate.
+- `tests/equity/forecasting/evaluation/test_prediction_cache.py::test_derive_cache_key_changes_on_version_bump` -- pins the version-axis invalidation.
