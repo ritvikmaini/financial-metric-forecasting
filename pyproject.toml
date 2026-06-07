@@ -50,6 +50,13 @@ ignore = ["E501"]
 "tests/equity/forecasting/models/test_lightgbm_model.py" = ["N803", "N806", "B018"]
 "tests/equity/forecasting/models/test_meta_learner.py" = ["N803", "N806", "B018"]
 "tests/equity/forecasting/models/test_simplex.py" = ["B018"]
+# S10 backtester orchestrator uses sklearn-style X for feature matrices.
+"fmf/equity/forecasting/evaluation/backtester.py" = ["N803", "N806"]
+"tests/equity/forecasting/evaluation/test_backtester_invariants.py" = ["N803", "N806"]
+"tests/equity/forecasting/evaluation/test_backtester.py" = ["N803", "N806"]
+"tests/equity/forecasting/evaluation/test_backtester_e2e.py" = ["N803", "N806"]
+"tests/equity/forecasting/evaluation/test_feature_cap.py" = ["N803", "N806"]
+"tests/equity/forecasting/evaluation/test_target_lookup.py" = ["N806"]
 
 [tool.mypy]
 python_version = "3.12"

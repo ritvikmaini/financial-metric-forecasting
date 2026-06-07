@@ -118,3 +118,25 @@ def test_smoke_real_fixture_matrix_slice() -> None:
     preds = model.predict(Xf)
     assert preds.shape == (len(Xf),)
     assert np.all(np.isfinite(preds))
+
+
+def test_feature_names_returns_column_names_in_training_order() -> None:
+    rng = np.random.default_rng(0)
+    X = pd.DataFrame(rng.normal(size=(50, 3)), columns=["c", "a", "b"])
+    y = rng.normal(size=50)
+    lgbm = LightGBMForecaster(seed=42).fit(X, y)
+    assert lgbm.feature_names() == ["c", "a", "b"]
+
+
+def test_feature_importance_gain_returns_strong_signal_first() -> None:
+    rng = np.random.default_rng(1)
+    X = pd.DataFrame(rng.normal(size=(200, 3)), columns=["weak", "strong", "noise"])
+    y = 5.0 * X["strong"].to_numpy() + 0.1 * rng.normal(size=200)
+    lgbm = LightGBMForecaster(seed=42).fit(X, y)
+    pairs = lgbm.feature_importance(importance_type="gain")
+    assert pairs[0][0] == "strong"
+
+
+def test_feature_importance_raises_when_not_fitted() -> None:
+    with pytest.raises(RuntimeError, match="not fitted"):
+        LightGBMForecaster(seed=42).feature_importance(importance_type="gain")

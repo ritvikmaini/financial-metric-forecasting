@@ -214,3 +214,45 @@ The correct PIT semantic is field-level: for each field, the latest non-null val
 **Source:** `fmf/features/point_in_time.py::fetch_pit_series` + `_field_level_pit_select_sql` helper (fix commit `7bbeab4`). `fmf/features/audit/coverage.py::compute_coverage` (commit `35ddd6b`). Tested at `tests/features/test_point_in_time.py::test_pit_series_partial_redisclosure_retains_omitted_field` (constructed in-memory, partial restatement of one field) and `::test_pit_series_assembles_each_field_at_latest_non_null` (re-checked against the real fixture). TDD red commit `660da09`. Re-measure commit `8efde18`.
 
 **Note for T3b:** GOOGL emits `CostOfRevenue` (142 USD facts) + `Revenues`/`RevenueFromContractWithCustomerExcludingAssessedTax` but does NOT emit `GrossProfit`. JPM emits neither `GrossProfit` nor `CostOfRevenue` (bank). Deriving `gross_profit = revenue - CostOfRevenue` in normalize when `GrossProfit` is untagged would make GOOGL computable while JPM remains correctly dropped, and lifts `gross_profit` coverage. Deferred — normalize change with its own surface; surface in T3b registry design.
+
+### L-EVAL-S10-001 — Per-row PIT targets, embargo-zero-by-construction
+
+**Tag:** `[methodology, ported]` (the per-row target + strict-purge pattern) + `[public-data finding]` (the comparative-row trap that surfaced on close-read)
+
+**Claim:** The S10 expanding-window backtester uses a per-row target — for each row `(security_id, as_of=D)` the label is the next not-yet-disclosed fiscal-year metric, computed at D rather than at the fold cutoff. The purge between train and test is the strict inequality `target_accepted_date < T_k` applied per row, not a length in days. In expanding-window walk-forward this leaves the symmetric leakage channel empty by construction, so the leakage embargo is 0 and no embargo knob ships in v1.0. A regime-shift regularization buffer is a different concept and is filed to the S15/S17 tier program as `IDEA-S10-001`, not as a default in the backtester.
+
+**Source:** `fmf/equity/forecasting/evaluation/backtester.py::ExpandingWindowBacktester._run_fold` and `_fold_generator.generate_folds`. Decisions 1, 3, 4, 6 in `plans/2026-06-07-s10-backtester.md`.
+
+**Reproducer:**
+- `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_purge_invariant_train_targets_strictly_before_test_cutoff` — asserts `diag.train_target_accepted_max < diag.cutoff` for every scored fold.
+- `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_no_q4_target_observed_at_as_of` — asserts target_accepted_date > as_of_date on every Q4-post-10K row.
+- `tests/equity/forecasting/evaluation/test_backtester_config.py::test_config_has_no_embargo_field` — pins the absence of any embargo field on `BacktesterConfig`.
+
+### L-EVAL-S10-002 — Comparative-row trap in next-FY target lookup
+
+**Tag:** `[public-data finding]` — surfaced on close-read of the S10 plan, not present at Bavest.
+
+**Claim:** Every 10-K carries prior-year FY rows as comparatives, so `income_statement` holds multiple `period='FY'` rows for the same `fiscal_year` at different `accepted_date`s (original + each later 10-K's comparative column). Ordering raw rows by `accepted_date ASC` and taking the first one strictly after `as_of` returns the SAME fiscal_year that was originally disclosed earlier (and the model already knew), via that fiscal_year's comparative inside a later 10-K. The model is then scored on predicting a value it already held — a degenerate target that inflates the scoreboard pervasively, not an amendment edge.
+
+**Fix:** Target = smallest fiscal_year whose `MIN(accepted_date)` over non-null `period='FY'` rows is strictly after as_of. Implemented as a CTE in `_target_lookup.next_fy_target`: identify fiscal_years by their earliest non-null disclosure, then pick the smallest fiscal_year whose earliest disclosure is strictly after as_of, and return the value at THAT earliest disclosure (the original 10-K). `last_fy_actual` does not share the bug because it orders by `end_date DESC` and finds the genuine latest fiscal year regardless of restatements.
+
+**Source:** `fmf/equity/forecasting/evaluation/_target_lookup.py::next_fy_target` (CTE-based fix). Decision 1 in `plans/2026-06-07-s10-backtester.md`.
+
+**Reproducer:**
+- `tests/equity/forecasting/evaluation/test_target_lookup.py::test_next_fy_target_skips_comparative_for_already_disclosed_fy` — hand-built in-memory three-row fixture (FY t original at D1, FY t comparative at D2, FY t+1 original at D3); for an as_of strictly between D1 and D2 the function must return FY t+1 at D3. Deterministic regardless of how the F1 grid lands on real filings.
+- `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_target_fy_has_no_disclosure_at_or_before_as_of` — for every scored row in the real-fixture backtest, asserts there is no `period='FY'` row for `target_fy` with `accepted_date <= as_of_date`. Fixture precondition: at least one ticker carries a prior-year FY restated as a comparative in a later 10-K (verified at T0 Step 4 — the mini.duckdb fixture has 10+ such pairs).
+
+**Why test_no_q4_target_observed_at_as_of does NOT catch this:** the comparative's accepted_date is itself > as_of, so `target_accepted_date > as_of` still holds while the fiscal_year is wrong. Invariant 8 is needed alongside Invariant 4.
+
+### L-EVAL-S10-003 — OOS prior-fold meta-learner training, not in-sample resub
+
+**Tag:** `[methodology, ported]` — the leakage-correct walk-forward stacking pattern.
+
+**Claim:** The S10 meta-learner trains on accumulated prior-fold OOS prediction tuples `(lgbm_pred, tirex_pred, naive_baseline, target_value)` whose targets are realized at the current cutoff. The simplex GD then fits per fold under `consensus_floor=0.0` on the naive third signal (Decision 7 in the plan documents the forced divergence from the live path's consensus signal). Cold-start until `meta_min_train` realized OOS triples accumulate; `result.meta_learned_from_fold` records the transition. In-sample stacking (the base model's resub predictions used as the meta-learner's training input) is textbook leakage — the base model that overfits hardest gets its in-sample predictions flattered and the learned simplex weights tilt toward it. Shipping that inside the backtester would directly contradict the project's thesis on knowing where leakage hides.
+
+**Source:** `fmf/equity/forecasting/evaluation/backtester.py::_run_fold` (OOS gathering branch via `_gather_realized_oos`) + cold-start equal-weight fallback. Decisions 7 and 11 in `plans/2026-06-07-s10-backtester.md`.
+
+**Reproducer:**
+- `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_meta_learner_train_sources_are_strictly_prior_folds` — reads `diag.meta_train_source_folds` (populated from `source_fold_idx` on the OOS frame at the moment the simplex GD is fit) and asserts every source-fold index is strictly less than the activating fold's index.
+- `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_cold_start_equal_weight_blend_before_meta_active` — for every row tagged `cold_start_equal_weight`, asserts `ensemble_pred` equals the mean of the finite signals among (lgbm_pred, tirex_pred, naive_baseline).
+- `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_meta_learner_output_labeling_matches_activation` — companion labeling-sanity check.

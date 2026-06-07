@@ -144,3 +144,16 @@ class LightGBMForecaster:
                 raise ValueError(f"missing features at predict time: {sorted(missing)}")
             X = X[self._feature_names]
         return np.asarray(self._model.predict(X.values), dtype=np.float64)
+
+    def feature_names(self) -> list[str]:
+        if self._feature_names is None:
+            raise RuntimeError("model not fitted; call fit() first")
+        return list(self._feature_names)
+
+    def feature_importance(self, *, importance_type: str = "gain") -> list[tuple[str, float]]:
+        if self._model is None:
+            raise RuntimeError("model not fitted; call fit() first")
+        names = self._model.feature_name()
+        importances = self._model.feature_importance(importance_type=importance_type)
+        pairs = sorted(zip(names, importances, strict=True), key=lambda p: -float(p[1]))
+        return [(name, float(imp)) for name, imp in pairs]
