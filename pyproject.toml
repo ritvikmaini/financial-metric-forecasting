@@ -26,6 +26,9 @@ dev = [
     "typer>=0.12.0",
 ]
 
+[project.scripts]
+fmf-runs = "scripts.fmf_runs_cli:app"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -60,6 +63,8 @@ ignore = ["E501"]
 "tests/equity/forecasting/evaluation/test_target_lookup.py" = ["N806"]
 # Typer CLI conventionally puts typer.Option(...) in argument defaults.
 "scripts/run_pipeline.py" = ["B008"]
+"scripts/benchmark.py" = ["B008"]
+"scripts/fmf_runs_cli.py" = ["B008"]
 # Pipeline forecast runner uses sklearn-style X for the feature matrix.
 "fmf/pipeline/forecast_runner.py" = ["N806"]
 # Pipeline tests use sklearn-style X for feature matrices.
@@ -106,9 +111,12 @@ module = [
     "fmf.pipeline.dataset_builder",
     "fmf.pipeline.forecast_runner",
     "fmf.pipeline.quality_checks",
+    "fmf.research.fmf_runs",
     "scripts.coverage_audit",
     "scripts.build_feature_matrix",
     "scripts.run_pipeline",
+    "scripts.benchmark",
+    "scripts.fmf_runs_cli",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true

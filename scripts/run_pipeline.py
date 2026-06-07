@@ -21,9 +21,11 @@ import typer
 from fmf.pipeline.dataset_builder import build_inference_dataset
 from fmf.pipeline.forecast_runner import run_forecast
 from fmf.pipeline.quality_checks import any_failed, run_quality_checks
+from fmf.research.fmf_runs import Registry, RunRecord, config_flags_hash, run_id_for
 
 REPO_ROOT = Path(__file__).parent.parent
 DEFAULT_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "mini.duckdb"
+DEFAULT_REGISTRY = REPO_ROOT / "reports" / "fmf_runs.db"
 
 app = typer.Typer(add_completion=False)
 log = logging.getLogger("run_pipeline")
@@ -98,7 +100,10 @@ def cli_chain(
     model_path: Path = typer.Option(..., "--model-path"),
     metric: str = typer.Option("eps_diluted", "--metric"),
     fixture: Path = typer.Option(DEFAULT_FIXTURE, "--fixture"),
+    registry: Path = typer.Option(DEFAULT_REGISTRY, "--registry"),
+    no_registry: bool = typer.Option(False, "--no-registry"),
 ) -> None:
+    started_at = dt.datetime.now(dt.UTC)
     conn = duckdb.connect(str(fixture), read_only=True)
     try:
         rows = conn.execute('SELECT security_id FROM "securities" ORDER BY symbol').fetchall()
@@ -117,7 +122,46 @@ def cli_chain(
         dataset=dataset,
         metric=metric,
     )
+    finished_at = dt.datetime.now(dt.UTC)
     log.info("chain wrote %s (run_id=%s)", out_path, run_id)
+    if not no_registry:
+        config = {
+            "metric": metric,
+            "as_of": as_of,
+            "feature_ids": list(feature),
+            "model_path": str(model_path),
+            "fixture": str(fixture),
+        }
+        cfg_hash = config_flags_hash(config)
+        started_minute = started_at.replace(second=0, microsecond=0).isoformat()
+        rid = run_id_for(
+            mode="adhoc",
+            config_flags_hash_value=cfg_hash,
+            window=as_of,
+            metric=metric,
+            started_at_iso_minute=started_minute,
+        )
+        record = RunRecord(
+            run_id=rid,
+            mode="adhoc",
+            config_flags_hash=cfg_hash,
+            commit_sha=None,
+            metric=metric,
+            start_year=None,
+            end_year=None,
+            n_securities=len(ids),
+            n_rows_scored=len(dataset),
+            status="ok",
+            started_at=started_at,
+            finished_at=finished_at,
+            config=config,
+        )
+        reg = Registry(registry)
+        try:
+            inserted = reg.record_run(record)
+        finally:
+            reg.close()
+        log.info("registry run_id=%s inserted=%s", rid, inserted)
     results = run_quality_checks(
         predictions_path=out_path,
         expected_security_count=len(ids),

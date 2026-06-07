@@ -291,3 +291,15 @@ The correct PIT semantic is field-level: for each field, the latest non-null val
 
 **Reproducer:**
 - `tests/equity/forecasting/models/test_lightgbm_model.py::test_save_load_round_trip_preserves_predictions` -- pins the artifact contract both entries rely on.
+
+### L-INFRA-S13-001 - Append-only run registry with config-hash key
+
+**Tag:** [methodology, ported]
+
+**Claim:** S13 ships `fmf/research/fmf_runs.py`, a SQLite append-only registry at `reports/fmf_runs.db`. One row per run in `runs`, keyed by a deterministic UUID5 `run_id`. Config flags live in a normalised `run_config` k-v table sharing identical-config runs by `config_flags_hash` (SHA256 over the canonicalized config JSON). The backtester remains library-only and registry-unaware; write-through happens at the CLI boundary so backtester unit tests do not touch the registry. The `verify` subcommand re-hashes each run's config and flags drift, separately from the S14 prediction cache which will share the hash as a cache key.
+
+**Source:** `fmf/research/fmf_runs.py`. Decisions 1, 2, 3, 4, 6, 8 in `plans/2026-06-07-s13-run-registry.md`.
+
+**Reproducer:**
+- `tests/research/test_fmf_runs.py::test_record_run_is_idempotent_returns_false`
+- `tests/research/test_fmf_runs.py::test_verify_flags_config_drift`
