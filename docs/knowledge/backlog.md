@@ -11,3 +11,5 @@
 - `IDEA-S10-010` — Top-k feature-cap sweep against the scoreboard. Proprietary IDEA-017 noted the cap was never empirically swept; v1.0 ships the mechanism at default k=30 and defers the sweep.
 - `IDEA-S10-011` — Naive-baseline floor sweep candidate. v1.0 ships `consensus_floor=0.0` on the naive third signal in the backtest path (the floor's original 0.30 justification was consensus being a strong external prior, not transferable to last-year-actual). Live path keeps 0.30 on consensus.
 - `IDEA-S10-012` — Warm-up boundary marker in the S22 scoreboard chart: shade the folds where `ensemble_source == "cold_start_equal_weight"` so readers see the transition explicitly.
+- `IDEA-S11-001` - Per-security AR(1) instead of pooled. v1.0 ships pooled OLS phi per fold; per-security would refit phi per ticker per fold. Adds complexity; defer until empirically motivated.
+- `IDEA-S11-002` - Per-bucket noise floor measurement in S15. The S11 horizon-bucket scoreboard surfaces a long-weighted distribution; the S15 noise floor should be computed per bucket as well so claimed improvements are gated against the bucket-specific sigma, not the aggregate.

@@ -134,3 +134,31 @@ def test_scoreboard_helper_produces_seven_metrics_per_model() -> None:
         "correlation",
     }
     assert expected_metrics <= set(board.columns)
+
+
+@pytest.mark.slow
+def test_scoreboard_horizon_bucket_slicing() -> None:
+    conn = fixture_conn()
+    try:
+        cfg = BacktesterConfig(
+            metric="eps_diluted",
+            start_year=2020,
+            end_year=2022,
+            grid_strategy="filing_dates",
+            feature_ids=("revenue_ttm", "gross_margin"),
+            min_train_samples=10,
+            meta_min_train=8,
+        )
+        result = ExpandingWindowBacktester(conn, cfg, tirex_backend=StubTirexBackend()).run(
+            two_anchor_ids(conn)
+        )
+    finally:
+        conn.close()
+    agg = scoreboard_from_result(result, by_horizon_bucket=False)
+    sliced = scoreboard_from_result(result, by_horizon_bucket=True)
+    assert isinstance(sliced.index, pd.MultiIndex)
+    assert {"LightGBM", "AR1", "RandomWalk", "NaiveLastYear"} <= set(
+        sliced.index.get_level_values(0).unique()
+    )
+    assert {"short", "medium", "long"} <= set(sliced.index.get_level_values(1).unique())
+    assert set(agg.columns) == set(sliced.columns)

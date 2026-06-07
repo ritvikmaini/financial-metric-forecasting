@@ -256,3 +256,14 @@ The correct PIT semantic is field-level: for each field, the latest non-null val
 - `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_meta_learner_train_sources_are_strictly_prior_folds` — reads `diag.meta_train_source_folds` (populated from `source_fold_idx` on the OOS frame at the moment the simplex GD is fit) and asserts every source-fold index is strictly less than the activating fold's index.
 - `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_cold_start_equal_weight_blend_before_meta_active` — for every row tagged `cold_start_equal_weight`, asserts `ensemble_pred` equals the mean of the finite signals among (lgbm_pred, tirex_pred, naive_baseline).
 - `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_meta_learner_output_labeling_matches_activation` — companion labeling-sanity check.
+
+### L-EVAL-S11-001 - Long-weighted horizon distribution; bucket slicing as a known property
+
+**Tag:** `[methodology, ported]` (bucket slicing) + `[public-data finding]` (the long-weighting shape).
+
+**Claim:** The F1 four-cutoff grid in the S10 backtester produces a horizon distribution heavily concentrated near 365 days (AAPL+MSFT 2018-2023: median 360, p75 364, p90 369, p99 732). Most result rows are long-horizon predictions; the short-horizon tail (~100-200 days) is thin. Aggregate metrics weight long predictions disproportionately. The `scoreboard_from_result(by_horizon_bucket=True)` mode slices the 7-metric scoreboard by short (<=200d) / medium (200-365d) / long (>365d) buckets so the short-horizon tail is visible alongside the aggregate, not buried. Stated up front in the S22 methodology narrative as a known property of the backtest, not something for a reader to discover.
+
+**Source:** `fmf/equity/forecasting/evaluation/backtester.py::scoreboard_from_result`. Decision 6 in `plans/2026-06-07-s11-baselines.md`.
+
+**Reproducer:**
+- `tests/equity/forecasting/evaluation/test_backtester_e2e.py::test_scoreboard_horizon_bucket_slicing` - asserts multi-index `(model, bucket)` shape and metric-column schema parity with aggregate.

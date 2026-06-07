@@ -26,6 +26,13 @@ from fmf.equity.forecasting.evaluation._target_lookup import (
     last_fy_actual,
     next_fy_target,
 )
+from fmf.equity.forecasting.models.baselines import (
+    fit_ar1_pooled,
+    last_year_actual_baseline,
+    predict_ar1,
+    random_walk,
+    seasonal_naive,
+)
 from fmf.equity.forecasting.models.lightgbm_model import LightGBMForecaster
 from fmf.equity.forecasting.models.meta_learner import MetaLearner
 from fmf.equity.forecasting.models.tirex_model import TirexBackend, TirexForecaster
@@ -66,6 +73,10 @@ class BacktestRow:
     ensemble_pred: float | None
     ensemble_source: str
     yf_consensus_snapshot: float | None
+    rw_pred: float | None = None
+    sn_pred: float | None = None
+    ly_pred: float | None = None
+    ar1_pred: float | None = None
 
 
 @dataclass
@@ -81,6 +92,8 @@ class FoldDiagnostics:
     selected_features: frozenset[str] | None = None
     meta_active: bool = False
     meta_train_source_folds: frozenset[int] | None = None
+    ar1_phi: float | None = None
+    ar1_train_pairs_n: int | None = None
 
 
 @dataclass
@@ -162,6 +175,18 @@ class ExpandingWindowBacktester:
             return
         train_X = train_X.loc[finite_y].reset_index(drop=True)
         train_y_finite = train_y[finite_y]
+        # Per-fold pooled AR(1) on (y, y_lag) pairs from this fold's training
+        # rows only. Mirrors the feature-cap PIT discipline.
+        ar1_pairs = train_rows.loc[finite_y, ["target_value", "naive_baseline"]].rename(
+            columns={"target_value": "y", "naive_baseline": "y_lag"}
+        )
+        phi = fit_ar1_pooled(ar1_pairs)
+        diag.ar1_phi = phi
+        diag.ar1_train_pairs_n = int(
+            ar1_pairs.dropna()
+            .pipe(lambda d: d[np.isfinite(d["y"]) & np.isfinite(d["y_lag"])])
+            .shape[0]
+        )
         # LightGBM (Decision 10 ranking happens immediately after fit, on
         # this-fold-only train_X).
         lgbm = LightGBMForecaster(seed=self._config.seed).fit(train_X, train_y_finite)
@@ -212,6 +237,11 @@ class ExpandingWindowBacktester:
                 ens = sum(finite_signals) / len(finite_signals) if finite_signals else None
                 source = "cold_start_equal_weight"
             yf_consensus = self._fetch_yf_snapshot(r)
+            prev = None if not np.isfinite(n) else n
+            rw_pred = random_walk(prev)
+            sn_pred = seasonal_naive(prev, season_length=1)
+            ly_pred = last_year_actual_baseline(prev)
+            ar1_pred = predict_ar1(phi, prev)
             result.rows.append(
                 BacktestRow(
                     fold_idx=fold.fold_idx,
@@ -230,6 +260,10 @@ class ExpandingWindowBacktester:
                     ensemble_pred=ens,
                     ensemble_source=source,
                     yf_consensus_snapshot=yf_consensus,
+                    rw_pred=rw_pred,
+                    sn_pred=sn_pred,
+                    ly_pred=ly_pred,
+                    ar1_pred=ar1_pred,
                 )
             )
 
@@ -394,23 +428,44 @@ class ExpandingWindowBacktester:
         return rows
 
 
-_SCOREBOARD_MODELS = ("LightGBM", "TiRex", "Ensemble", "NaiveLastYear")
+_SCOREBOARD_MODELS = (
+    "LightGBM",
+    "TiRex",
+    "Ensemble",
+    "RandomWalk",
+    "AR1",
+    "SeasonalNaive",
+    "NaiveLastYear",
+)
 _PRED_COL = {
     "LightGBM": "lgbm_pred",
     "TiRex": "tirex_pred",
     "Ensemble": "ensemble_pred",
-    "NaiveLastYear": "naive_baseline",
+    "RandomWalk": "rw_pred",
+    "AR1": "ar1_pred",
+    "SeasonalNaive": "sn_pred",
+    "NaiveLastYear": "ly_pred",
+}
+
+_HORIZON_BUCKETS = (
+    ("short", 0, 200),
+    ("medium", 200, 365),
+    ("long", 365, 100_000),
+)
+
+_EMPTY_METRICS: dict[str, float | None] = {
+    "mape": None,
+    "median_ape": None,
+    "accuracy_within_10pct": None,
+    "accuracy_within_25pct": None,
+    "directional_accuracy": None,
+    "beat_miss_accuracy": None,
+    "coverage": 0.0,
+    "correlation": None,
 }
 
 
-def scoreboard_from_result(result: BacktestResult) -> pd.DataFrame:
-    """Per-model 7-metric scoreboard from a backtest result.
-
-    For directional_accuracy and beat_miss_accuracy, the "prev" / "consensus"
-    series is the naive_baseline (last-year actual). The v1.0 backtest has
-    no historical analyst consensus by spec (Decision 7), so naive doubles
-    as the comparison anchor. Documented in the S22 methodology doc.
-    """
+def _score_one(sub: pd.DataFrame, pred_col: str, total_attempts: int) -> dict[str, float | None]:
     from fmf.equity.forecasting.evaluation.metrics import (
         accuracy_within_pct,
         beat_miss_accuracy,
@@ -421,35 +476,60 @@ def scoreboard_from_result(result: BacktestResult) -> pd.DataFrame:
         median_ape,
     )
 
+    if sub.empty:
+        return dict(_EMPTY_METRICS)
+    a = sub["target_value"].to_numpy(dtype=np.float64)
+    p = sub[pred_col].to_numpy(dtype=np.float64)
+    prev_for_dir = sub["naive_baseline"].to_numpy(dtype=np.float64)
+    return {
+        "mape": mape(a, p),
+        "median_ape": median_ape(a, p),
+        "accuracy_within_10pct": accuracy_within_pct(a, p, threshold_pct=0.10),
+        "accuracy_within_25pct": accuracy_within_pct(a, p, threshold_pct=0.25),
+        "directional_accuracy": directional_accuracy(prev_for_dir, a, p),
+        "beat_miss_accuracy": beat_miss_accuracy(prev_for_dir, a, p),
+        "coverage": coverage(total_attempts, len(sub)),
+        "correlation": correlation(a, p),
+    }
+
+
+def scoreboard_from_result(
+    result: BacktestResult,
+    *,
+    by_horizon_bucket: bool = False,
+) -> pd.DataFrame:
+    """Per-model 7-metric scoreboard from a backtest result.
+
+    For directional_accuracy and beat_miss_accuracy, the "prev" / "consensus"
+    series is the naive_baseline (last-year actual). The v1.0 backtest has
+    no historical analyst consensus by spec (Decision 7), so naive doubles
+    as the comparison anchor across all model rows. Documented in the S22
+    methodology doc.
+
+    When by_horizon_bucket=True, returns a multi-index (model, bucket) frame
+    with the same 7-metric columns sliced by short (<=200d), medium
+    (200-365d), long (>365d). The S10 horizon distribution is long-weighted
+    (median 360, p99 732); aggregate alone hides the short-horizon tail.
+    See L-EVAL-S11-001.
+    """
     df = result.to_frame()
     total_attempts = len(df)
-    rows: dict[str, dict[str, float | None]] = {}
+    if not by_horizon_bucket:
+        rows: dict[str, dict[str, float | None]] = {}
+        for model in _SCOREBOARD_MODELS:
+            pred_col = _PRED_COL[model]
+            sub = df.dropna(subset=[pred_col, "target_value"])
+            rows[model] = _score_one(sub, pred_col, total_attempts)
+        return pd.DataFrame.from_dict(rows, orient="index")
+    sliced: dict[tuple[str, str], dict[str, float | None]] = {}
     for model in _SCOREBOARD_MODELS:
         pred_col = _PRED_COL[model]
-        sub = df.dropna(subset=[pred_col, "target_value"])
-        if sub.empty:
-            rows[model] = {
-                "mape": None,
-                "median_ape": None,
-                "accuracy_within_10pct": None,
-                "accuracy_within_25pct": None,
-                "directional_accuracy": None,
-                "beat_miss_accuracy": None,
-                "coverage": 0.0,
-                "correlation": None,
-            }
-            continue
-        a = sub["target_value"].to_numpy(dtype=np.float64)
-        p = sub[pred_col].to_numpy(dtype=np.float64)
-        prev_for_dir = sub["naive_baseline"].to_numpy(dtype=np.float64)
-        rows[model] = {
-            "mape": mape(a, p),
-            "median_ape": median_ape(a, p),
-            "accuracy_within_10pct": accuracy_within_pct(a, p, threshold_pct=0.10),
-            "accuracy_within_25pct": accuracy_within_pct(a, p, threshold_pct=0.25),
-            "directional_accuracy": directional_accuracy(prev_for_dir, a, p),
-            "beat_miss_accuracy": beat_miss_accuracy(prev_for_dir, a, p),
-            "coverage": coverage(total_attempts, len(sub)),
-            "correlation": correlation(a, p),
-        }
-    return pd.DataFrame.from_dict(rows, orient="index")
+        model_sub = df.dropna(subset=[pred_col, "target_value"])
+        for bucket, low, high in _HORIZON_BUCKETS:
+            bucket_sub = model_sub[
+                (model_sub["horizon_days"] >= low) & (model_sub["horizon_days"] < high)
+            ]
+            bucket_total = int(((df["horizon_days"] >= low) & (df["horizon_days"] < high)).sum())
+            sliced[(model, bucket)] = _score_one(bucket_sub, pred_col, bucket_total)
+    index = pd.MultiIndex.from_tuples(list(sliced.keys()), names=["model", "bucket"])
+    return pd.DataFrame(list(sliced.values()), index=index)

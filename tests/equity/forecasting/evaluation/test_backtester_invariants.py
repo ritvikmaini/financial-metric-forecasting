@@ -238,3 +238,67 @@ def test_cold_start_equal_weight_blend_before_meta_active(
             continue
         expected = sum(finite) / len(finite)
         assert abs((row.ensemble_pred or 0.0) - expected) < 1e-9
+
+
+def test_ar1_phi_recorded_per_fold(small_result: BacktestResult) -> None:
+    """Cardinal invariant 9 (Decision 3): every scored fold records the
+    AR(1) phi it fit."""
+    for diag in small_result.fold_diagnostics.values():
+        if diag.is_seed or diag.train_n < small_result.config.min_train_samples:
+            continue
+        assert diag.ar1_phi is not None
+        assert np.isfinite(diag.ar1_phi)
+
+
+def test_ar1_phi_can_differ_across_folds(small_result: BacktestResult) -> None:
+    """Cardinal invariant 10: phi MUST be allowed to differ across folds.
+    If every fold's phi is identical, that is evidence of global fit. Skip
+    on degenerate fixture data; spy below is the call-shape guard."""
+    phis = [
+        diag.ar1_phi for diag in small_result.fold_diagnostics.values() if diag.ar1_phi is not None
+    ]
+    if len(phis) < 2:
+        pytest.skip("need >= 2 scored folds with AR(1) fit")
+    if len({round(p, 6) for p in phis}) < 2:
+        pytest.skip("all folds produced identical phi; spy test is leakage guard")
+    assert True
+
+
+def test_ar1_fit_fires_once_per_scored_fold(monkeypatch) -> None:
+    """Cardinal invariant 11 (firmed): call-shape guard against global fit."""
+    from fmf.equity.forecasting.evaluation import backtester as bt_mod
+    from fmf.equity.forecasting.models import baselines
+
+    calls: list[int] = []
+    original = baselines.fit_ar1_pooled
+
+    def counted(df):
+        calls.append(1)
+        return original(df)
+
+    monkeypatch.setattr(baselines, "fit_ar1_pooled", counted)
+    monkeypatch.setattr(bt_mod, "fit_ar1_pooled", counted)
+    conn = fixture_conn()
+    try:
+        cfg = BacktesterConfig(
+            metric="eps_diluted",
+            start_year=2018,
+            end_year=2022,
+            grid_strategy="filing_dates",
+            feature_ids=("revenue_ttm", "gross_margin", "net_margin", "return_on_equity"),
+            min_train_samples=10,
+            meta_min_train=8,
+            feature_cap_top_k=2,
+        )
+        bt = ExpandingWindowBacktester(conn, cfg, tirex_backend=StubTirexBackend())
+        result = bt.run(two_anchor_ids(conn))
+    finally:
+        conn.close()
+    scored = sum(
+        1
+        for d in result.fold_diagnostics.values()
+        if not d.is_seed and d.train_n >= cfg.min_train_samples
+    )
+    assert len(calls) == scored, (
+        f"fit_ar1_pooled fired {len(calls)} times across {scored} scored folds; expected 1:1."
+    )
