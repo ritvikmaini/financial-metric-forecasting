@@ -318,3 +318,18 @@ Wiring is all-or-nothing per fold. The orchestrator probes every test row's cach
 - `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_cache_miss_when_data_fingerprint_changes` -- pins the data-axis invalidation.
 - `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_with_cache_predictions_match_without_cache` -- pins the orthogonality gate.
 - `tests/equity/forecasting/evaluation/test_prediction_cache.py::test_derive_cache_key_changes_on_version_bump` -- pins the version-axis invalidation.
+
+### L-FEAT-S18-001 - Falsified-and-kept methodology (earnings-quality cluster)
+
+**Tag:** [methodology, ported]
+
+**Claim:** The S18 earnings-quality cluster (Piotroski F-score, CCC, Dechow accruals, Beneish M-score, Mohanram G-score) ships as five experimental composite features behind a single on / off flag. The win-gate reproducer runs the backtester with cluster=ON vs cluster=OFF and records the DeltaMedAPE_Ensemble to `docs/specs/alternative_models.md`. The verdict is provisional pending S15 noise-floor sigma; spec section 6.7 anticipates a likely FAIL, and the cluster is kept in tree on FAIL as the project's Tier 1 demonstration of the falsified-and-kept pattern.
+
+Hand-calc tests on synthetic in-memory DuckDB rows are the rigor lever -- each composite has a textbook formula and a synthetic test that pins the formula explicitly. Fixture-DB anchor tests are secondary.
+
+**Source:** `fmf/features/composites/`, `scripts/run_cluster_win_gate.py`, `docs/specs/alternative_models.md`. Decisions 1, 2, 3, 6 in `plans/2026-06-07-s18-earnings-quality-cluster.md`.
+
+**Reproducer:**
+- `tests/features/composites/test_piotroski.py::test_f_score_hand_calc_on_synthetic_rows`
+- `python scripts/run_cluster_win_gate.py` (writes a new verdict row)
+- `tests/features/composites/test_cluster_registration.py::test_cluster_features_marked_experimental`

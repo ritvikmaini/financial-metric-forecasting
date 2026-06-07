@@ -37,37 +37,54 @@ def aapl_security_id(conn: duckdb.DuckDBPyConnection) -> uuid.UUID:
     return uuid.UUID(str(row[0]))
 
 
-def test_registry_has_59_features() -> None:
-    assert len(BUILTIN_REGISTRY) == 59
+def test_registry_has_64_features() -> None:
+    """59 base + 5 S18 earnings-quality cluster composites."""
+    assert len(BUILTIN_REGISTRY) == 64
 
 
 def test_registry_validates() -> None:
     validate_registry(BUILTIN_REGISTRY)
 
 
-def test_registry_has_three_experimental_features() -> None:
-    """The three coverage-dependent features that the user accepted as
-    experimental until cross-ticker thresholds settle."""
+def test_registry_has_eight_experimental_features() -> None:
+    """Three legacy coverage-dependent experimentals plus the five
+    S18 earnings-quality cluster composites (shipped behind the single
+    EARNINGS_QUALITY_CLUSTER flag).
+    """
     exp = {f.name for f in BUILTIN_REGISTRY if f.experimental}
-    assert exp == {"gross_profit_latest", "gross_profit_ttm", "gross_margin"}
+    assert exp == {
+        "gross_profit_latest",
+        "gross_profit_ttm",
+        "gross_margin",
+        "piotroski_f_score",
+        "ccc_days",
+        "dechow_accruals",
+        "beneish_m_score",
+        "mohanram_g_score",
+    }
 
 
 def test_registry_thresholds_all_final() -> None:
-    """Post-finalize: all 59 thresholds are anchored to measured values
-    (raw-coverage for the 34 raw-grounded features, T4 audit measured-5pp
-    capped at 0.95 for the 25 derived). No provisionals remain.
-
-    Floor range expected in [0.55, 0.95]:
-    - 0.55 lower bound covers the gross_profit experimentals' floor
-      (measured ~0.6301 - 5pp ≈ 0.58).
-    - 0.95 cap is the 100%-measured ceiling.
-    - No feature should still be at the provisional 0.50 placeholder.
+    """Post-finalize: 59 base thresholds anchored to measured values
+    (raw-coverage for raw-grounded, T4 audit measured-5pp capped at 0.95
+    for derived). The five S18 cluster composites carry min_coverage_pct=0.0
+    by design (schema-gap fields under IDEA-S18-002 / 003); they are
+    excluded from the legacy threshold range check.
     """
-    floors = [f.min_coverage_pct for f in BUILTIN_REGISTRY]
-    assert min(floors) >= 0.55, (
-        f"some feature still at a provisional or sub-experimental floor: min={min(floors)}"
+    cluster_names = {
+        "piotroski_f_score",
+        "ccc_days",
+        "dechow_accruals",
+        "beneish_m_score",
+        "mohanram_g_score",
+    }
+    legacy_floors = [f.min_coverage_pct for f in BUILTIN_REGISTRY if f.name not in cluster_names]
+    assert min(legacy_floors) >= 0.55, (
+        f"some legacy feature still at a provisional floor: min={min(legacy_floors)}"
     )
-    assert max(floors) <= 0.95, f"some feature exceeds the 0.95 cap: max={max(floors)}"
+    assert max(legacy_floors) <= 0.95, (
+        f"some legacy feature exceeds the 0.95 cap: max={max(legacy_floors)}"
+    )
     assert all(f.min_coverage_pct != 0.50 for f in BUILTIN_REGISTRY)
 
 

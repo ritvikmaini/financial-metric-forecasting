@@ -1,6 +1,6 @@
 {
   "total_samples": 146,
-  "feature_count": 59,
+  "feature_count": 64,
   "warnings": [],
   "features": {
     "revenue_latest": {
@@ -414,6 +414,41 @@
       "min_required": 0.79,
       "experimental": false,
       "filled": 123,
+      "total_samples": 146
+    },
+    "piotroski_f_score": {
+      "coverage_pct": 0.8151,
+      "min_required": 0.0,
+      "experimental": true,
+      "filled": 119,
+      "total_samples": 146
+    },
+    "ccc_days": {
+      "coverage_pct": 0.0,
+      "min_required": 0.0,
+      "experimental": true,
+      "filled": 0,
+      "total_samples": 146
+    },
+    "dechow_accruals": {
+      "coverage_pct": 0.9452,
+      "min_required": 0.0,
+      "experimental": true,
+      "filled": 138,
+      "total_samples": 146
+    },
+    "beneish_m_score": {
+      "coverage_pct": 0.0,
+      "min_required": 0.0,
+      "experimental": true,
+      "filled": 0,
+      "total_samples": 146
+    },
+    "mohanram_g_score": {
+      "coverage_pct": 0.9452,
+      "min_required": 0.0,
+      "experimental": true,
+      "filled": 138,
       "total_samples": 146
     }
   }

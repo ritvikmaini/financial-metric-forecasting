@@ -54,8 +54,8 @@ def jpm_sid(conn: duckdb.DuckDBPyConnection) -> str:
 
 def test_build_feature_matrix_shape(conn: duckdb.DuckDBPyConnection) -> None:
     df = build_feature_matrix(conn=conn, registry=BUILTIN_REGISTRY)
-    # 4 index columns + 59 features = 63 columns.
-    assert len(df.columns) == 63, f"expected 63 columns, got {len(df.columns)}"
+    # 4 index columns + 64 features (59 base + 5 S18 cluster) = 68 columns.
+    assert len(df.columns) == 68, f"expected 68 columns, got {len(df.columns)}"
     assert len(df) > 500, f"expected >500 rows, got {len(df)}"
     # Index column dtype sanity. Modern pandas (>= 2.1) auto-infers string
     # columns to StringDtype; older pandas leaves them as object. Accept
@@ -210,7 +210,7 @@ def test_cli_writes_parquet(tmp_path: Path) -> None:
     assert out.exists()
     df = pd.read_parquet(out)
     assert len(df) > 500
-    assert len(df.columns) == 63
+    assert len(df.columns) == 68
 
 
 def test_cli_writes_csv_with_csv_suffix(tmp_path: Path) -> None:
@@ -238,4 +238,4 @@ def test_cli_writes_csv_with_csv_suffix(tmp_path: Path) -> None:
     assert out.exists()
     df = pd.read_csv(out)
     assert len(df) > 0
-    assert len(df.columns) == 63
+    assert len(df.columns) == 68

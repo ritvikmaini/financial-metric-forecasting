@@ -31,6 +31,11 @@ from collections.abc import Callable
 import duckdb
 import pandas as pd
 
+from fmf.features.composites._beneish import compute_beneish_m_score
+from fmf.features.composites._ccc import compute_ccc_days
+from fmf.features.composites._dechow import compute_dechow_accruals
+from fmf.features.composites._mohanram import compute_mohanram_g_score
+from fmf.features.composites._piotroski import compute_piotroski_f_score
 from fmf.features.derived import (
     _isna,
     _to_date,
@@ -1152,6 +1157,67 @@ def _build_registry() -> FeatureRegistry:
             required=False,
             experimental=False,
             min_coverage_pct=0.79,
+        )
+    )
+
+    # S18 earnings-quality cluster (5 experimental composites behind one flag).
+    # Coverage floor is 0.0 by design: cluster features have inherently low
+    # coverage on v1.0 source tables (schema gaps tracked in IDEA-S18-002/003),
+    # so the audit should not flag them. The win-gate reproducer measures
+    # whether they add signal despite the sparsity.
+    reg.register(
+        Feature(
+            name="piotroski_f_score",
+            description="Partial 4-signal Piotroski F-score (ROA>0, CFO>0, CFO>NI, delta current_ratio>0).",
+            source_tables=("income_statement", "balance_sheet", "cashflow"),
+            compute=compute_piotroski_f_score,
+            required=False,
+            experimental=True,
+            min_coverage_pct=0.0,
+        )
+    )
+    reg.register(
+        Feature(
+            name="ccc_days",
+            description="Cash conversion cycle in days: DIO + DSO - DPO. Returns None when inventory / receivables / payables fields are missing (IDEA-S18-003).",
+            source_tables=("income_statement", "balance_sheet"),
+            compute=compute_ccc_days,
+            required=False,
+            experimental=True,
+            min_coverage_pct=0.0,
+        )
+    )
+    reg.register(
+        Feature(
+            name="dechow_accruals",
+            description="Modified Dechow accruals: (NI - CFO) / average_total_assets.",
+            source_tables=("income_statement", "balance_sheet", "cashflow"),
+            compute=compute_dechow_accruals,
+            required=False,
+            experimental=True,
+            min_coverage_pct=0.0,
+        )
+    )
+    reg.register(
+        Feature(
+            name="beneish_m_score",
+            description="Beneish 8-variable M-score. Returns None when any of the 8 inputs is missing (IDEA-S18-003).",
+            source_tables=("income_statement", "balance_sheet", "cashflow"),
+            compute=compute_beneish_m_score,
+            required=False,
+            experimental=True,
+            min_coverage_pct=0.0,
+        )
+    )
+    reg.register(
+        Feature(
+            name="mohanram_g_score",
+            description="Partial 4-signal Mohanram G-score on EDGAR fundamentals (IDEA-S18-002 for full form).",
+            source_tables=("income_statement", "balance_sheet", "cashflow"),
+            compute=compute_mohanram_g_score,
+            required=False,
+            experimental=True,
+            min_coverage_pct=0.0,
         )
     )
 
