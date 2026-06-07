@@ -46,7 +46,10 @@ ignore = ["E501"]
 # sklearn-style X for feature matrices in the model wrapper + its tests + protocol.
 "fmf/equity/forecasting/models/lightgbm_model.py" = ["N803", "N806"]
 "fmf/equity/forecasting/models/protocols.py" = ["N803"]
+"fmf/equity/forecasting/models/meta_learner.py" = ["N803", "N806"]
 "tests/equity/forecasting/models/test_lightgbm_model.py" = ["N803", "N806", "B018"]
+"tests/equity/forecasting/models/test_meta_learner.py" = ["N803", "N806", "B018"]
+"tests/equity/forecasting/models/test_simplex.py" = ["B018"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -82,6 +85,8 @@ module = [
     "fmf.equity.forecasting.models.protocols",
     "fmf.equity.forecasting.models.tirex_model",
     "fmf.equity.forecasting.models._tirex_preprocessing",
+    "fmf.equity.forecasting.models._simplex",
+    "fmf.equity.forecasting.models.meta_learner",
     "scripts.coverage_audit",
     "scripts.build_feature_matrix",
 ]

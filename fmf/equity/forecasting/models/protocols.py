@@ -41,3 +41,24 @@ class TimeSeriesForecaster(Protocol):
     """Any univariate time-series forecaster (zero-shot or trained)."""
 
     def predict(self, series: np.ndarray, *, horizon: int) -> TirexOutput: ...
+
+
+class Ensemble(Protocol):
+    """Any model that combines multiple signals into a single prediction."""
+
+    def train(
+        self,
+        lgbm_preds: np.ndarray,
+        tirex_preds: np.ndarray,
+        consensus: np.ndarray,
+        actuals: np.ndarray,
+    ) -> Ensemble: ...
+
+    def predict(
+        self,
+        lgbm_pred: np.ndarray,
+        tirex_pred: np.ndarray,
+        consensus: np.ndarray,
+    ) -> np.ndarray: ...
+
+    def get_weights(self) -> dict[str, float]: ...
