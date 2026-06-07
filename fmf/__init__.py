@@ -1,3 +1,3 @@
-"""fmf-public: Financial Metrics Forecasting on public data."""
+"""Financial Metric Forecasting: a leakage-correct, point-in-time backtesting framework on public data."""
 
-__version__ = "0.0.1"
+__version__ = "1.0.0"

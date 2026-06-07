@@ -58,7 +58,7 @@ def _repo_root() -> Path:
     for parent in (p, *p.parents):
         if (parent / "pyproject.toml").exists() and (parent / "fmf").exists():
             return parent
-    raise RuntimeError(f"could not find fmf-public repo root from cwd={p}")
+    raise RuntimeError(f"could not find Financial Metric Forecasting repo root from cwd={p}")
 
 
 REPO_ROOT = _repo_root()
@@ -269,7 +269,7 @@ plt.show()
 # with the red X on the scatter). This is a real-data finding worth
 # pulling out -- corporate actions inject discontinuities into per-share
 # metrics that an academic split-adjusted backtest would smooth away.
-# fmf-public uses EDGAR as-disclosed values, and the next cell confirms
+# This repository uses EDGAR as-disclosed values, and the next cell confirms
 # the EDA and the backtester treat the split identically: at the three
 # 2022 cutoffs (Q1 May-15, Q2 Aug-14, Q3 Nov-15) the backtester's naive
 # baseline for GOOGL is the pre-split FY2021 EPS of $112.20 and the

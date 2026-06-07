@@ -61,7 +61,7 @@ def _repo_root() -> Path:
     for parent in (p, *p.parents):
         if (parent / "pyproject.toml").exists() and (parent / "fmf").exists():
             return parent
-    raise RuntimeError(f"could not find fmf-public repo root from cwd={p}")
+    raise RuntimeError(f"could not find Financial Metric Forecasting repo root from cwd={p}")
 
 
 REPO_ROOT = _repo_root()
@@ -412,7 +412,7 @@ plt.show()
 #
 # Notebook 01 surfaced the GOOGL 20-for-1 stock split of July 2022 as
 # a structural break in the EPS series: FY2021 = $112.20 -> FY2022 =
-# $4.56 in the as-disclosed values the model consumes. fmf-public
+# $4.56 in the as-disclosed values the model consumes. This repository
 # deliberately uses as-disclosed values rather than split-adjusted
 # ones from Yahoo Finance, because PIT correctness on the disclosure
 # stream is the whole point of the backtester. The cost surfaces here:

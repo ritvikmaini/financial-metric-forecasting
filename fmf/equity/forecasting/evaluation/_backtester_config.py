@@ -13,7 +13,7 @@ GRID_STRATEGIES: tuple[str, ...] = ("filing_dates", "fiscal_year_end", "quarterl
 class BacktesterConfig:
     """S10 backtester configuration.
 
-    No embargo field by design (Decision 6 in plans/2026-06-07-s10-backtester.md):
+    No embargo field by design (Decision 6 of the S10 design):
     expanding-window with the f' < T_k purge has an empty symmetric channel,
     so a leakage embargo would be inert.
     """

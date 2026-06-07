@@ -1,4 +1,4 @@
--- fmf-public DuckDB schema
+-- Financial Metric Forecasting DuckDB schema
 --
 -- Mirrors the bavest.* table shape from the Bavest FMF project so the
 -- point-in-time extraction logic (FMF-004 port, lands in S4) does not

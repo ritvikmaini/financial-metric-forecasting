@@ -62,7 +62,7 @@ def _repo_root() -> Path:
     for parent in (p, *p.parents):
         if (parent / "pyproject.toml").exists() and (parent / "fmf").exists():
             return parent
-    raise RuntimeError(f"could not find fmf-public repo root from cwd={p}")
+    raise RuntimeError(f"could not find Financial Metric Forecasting repo root from cwd={p}")
 
 
 REPO_ROOT = _repo_root()

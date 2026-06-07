@@ -1,7 +1,7 @@
 """ExpandingWindowBacktester orchestrator (S10).
 
 Per-row PIT-correct expanding-window backtester. See
-plans/2026-06-07-s10-backtester.md for the load-bearing decisions
+the S10 design for the load-bearing decisions
 (target definition, fold cutoff semantics, purge mechanism, OOS
 meta-learner training, feature cap).
 """
@@ -122,7 +122,7 @@ class BacktestResult:
 class ExpandingWindowBacktester:
     """Per-row PIT-correct expanding-window backtester.
 
-    Decisions 1-11 in plans/2026-06-07-s10-backtester.md are load-bearing
+    Decisions 1-11 of the S10 design are load-bearing
     for correctness; do not change them without re-running the close-read
     gate.
     """

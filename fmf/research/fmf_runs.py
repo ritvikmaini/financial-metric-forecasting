@@ -1,4 +1,4 @@
-"""SQLite append-only run registry for fmf-public.
+"""SQLite append-only run registry for Financial Metric Forecasting.
 
 Source of truth for 'what's been run with what config against which window'.
 Read by the noise-floor (S15) and admission gate (S17) sessions; never mutated.
@@ -119,7 +119,7 @@ class Registry:
         if current > _SCHEMA_VERSION:
             raise RuntimeError(
                 f"registry DB at version {current}; code only knows {_SCHEMA_VERSION}. "
-                "Upgrade fmf-public before reading this DB."
+                "Upgrade financial-metric-forecasting before reading this DB."
             )
         if current < _SCHEMA_VERSION:
             self._conn.execute(

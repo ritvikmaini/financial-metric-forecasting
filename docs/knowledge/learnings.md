@@ -221,7 +221,7 @@ The correct PIT semantic is field-level: for each field, the latest non-null val
 
 **Claim:** The S10 expanding-window backtester uses a per-row target — for each row `(security_id, as_of=D)` the label is the next not-yet-disclosed fiscal-year metric, computed at D rather than at the fold cutoff. The purge between train and test is the strict inequality `target_accepted_date < T_k` applied per row, not a length in days. In expanding-window walk-forward this leaves the symmetric leakage channel empty by construction, so the leakage embargo is 0 and no embargo knob ships in v1.0. A regime-shift regularization buffer is a different concept and is filed to the S15/S17 tier program as `IDEA-S10-001`, not as a default in the backtester.
 
-**Source:** `fmf/equity/forecasting/evaluation/backtester.py::ExpandingWindowBacktester._run_fold` and `_fold_generator.generate_folds`. Decisions 1, 3, 4, 6 in `plans/2026-06-07-s10-backtester.md`.
+**Source:** `fmf/equity/forecasting/evaluation/backtester.py::ExpandingWindowBacktester._run_fold` and `_fold_generator.generate_folds`. Decisions 1, 3, 4, 6 of the S10 design.
 
 **Reproducer:**
 - `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_purge_invariant_train_targets_strictly_before_test_cutoff` — asserts `diag.train_target_accepted_max < diag.cutoff` for every scored fold.
@@ -236,7 +236,7 @@ The correct PIT semantic is field-level: for each field, the latest non-null val
 
 **Fix:** Target = smallest fiscal_year whose `MIN(accepted_date)` over non-null `period='FY'` rows is strictly after as_of. Implemented as a CTE in `_target_lookup.next_fy_target`: identify fiscal_years by their earliest non-null disclosure, then pick the smallest fiscal_year whose earliest disclosure is strictly after as_of, and return the value at THAT earliest disclosure (the original 10-K). `last_fy_actual` does not share the bug because it orders by `end_date DESC` and finds the genuine latest fiscal year regardless of restatements.
 
-**Source:** `fmf/equity/forecasting/evaluation/_target_lookup.py::next_fy_target` (CTE-based fix). Decision 1 in `plans/2026-06-07-s10-backtester.md`.
+**Source:** `fmf/equity/forecasting/evaluation/_target_lookup.py::next_fy_target` (CTE-based fix). Decision 1 of the S10 design.
 
 **Reproducer:**
 - `tests/equity/forecasting/evaluation/test_target_lookup.py::test_next_fy_target_skips_comparative_for_already_disclosed_fy` — hand-built in-memory three-row fixture (FY t original at D1, FY t comparative at D2, FY t+1 original at D3); for an as_of strictly between D1 and D2 the function must return FY t+1 at D3. Deterministic regardless of how the F1 grid lands on real filings.
@@ -250,7 +250,7 @@ The correct PIT semantic is field-level: for each field, the latest non-null val
 
 **Claim:** The S10 meta-learner trains on accumulated prior-fold OOS prediction tuples `(lgbm_pred, tirex_pred, naive_baseline, target_value)` whose targets are realized at the current cutoff. The simplex GD then fits per fold under `consensus_floor=0.0` on the naive third signal (Decision 7 in the plan documents the forced divergence from the live path's consensus signal). Cold-start until `meta_min_train` realized OOS triples accumulate; `result.meta_learned_from_fold` records the transition. In-sample stacking (the base model's resub predictions used as the meta-learner's training input) is textbook leakage — the base model that overfits hardest gets its in-sample predictions flattered and the learned simplex weights tilt toward it. Shipping that inside the backtester would directly contradict the project's thesis on knowing where leakage hides.
 
-**Source:** `fmf/equity/forecasting/evaluation/backtester.py::_run_fold` (OOS gathering branch via `_gather_realized_oos`) + cold-start equal-weight fallback. Decisions 7 and 11 in `plans/2026-06-07-s10-backtester.md`.
+**Source:** `fmf/equity/forecasting/evaluation/backtester.py::_run_fold` (OOS gathering branch via `_gather_realized_oos`) + cold-start equal-weight fallback. Decisions 7 and 11 of the S10 design.
 
 **Reproducer:**
 - `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_meta_learner_train_sources_are_strictly_prior_folds` — reads `diag.meta_train_source_folds` (populated from `source_fold_idx` on the OOS frame at the moment the simplex GD is fit) and asserts every source-fold index is strictly less than the activating fold's index.
@@ -263,7 +263,7 @@ The correct PIT semantic is field-level: for each field, the latest non-null val
 
 **Claim:** The F1 four-cutoff grid in the S10 backtester produces a horizon distribution heavily concentrated near 365 days (AAPL+MSFT 2018-2023: median 360, p75 364, p90 369, p99 732). Most result rows are long-horizon predictions; the short-horizon tail (~100-200 days) is thin. Aggregate metrics weight long predictions disproportionately. The `scoreboard_from_result(by_horizon_bucket=True)` mode slices the 7-metric scoreboard by short (<=200d) / medium (200-365d) / long (>365d) buckets so the short-horizon tail is visible alongside the aggregate, not buried. Stated up front in the S22 methodology narrative as a known property of the backtest, not something for a reader to discover.
 
-**Source:** `fmf/equity/forecasting/evaluation/backtester.py::scoreboard_from_result`. Decision 6 in `plans/2026-06-07-s11-baselines.md`.
+**Source:** `fmf/equity/forecasting/evaluation/backtester.py::scoreboard_from_result`. Decision 6 of the S11 design.
 
 **Reproducer:**
 - `tests/equity/forecasting/evaluation/test_backtester_e2e.py::test_scoreboard_horizon_bucket_slicing` - asserts multi-index `(model, bucket)` shape and metric-column schema parity with aggregate.
@@ -274,7 +274,7 @@ The correct PIT semantic is field-level: for each field, the latest non-null val
 
 **Claim:** The S12 pipeline chain is three stages: dataset_builder produces an inference panel at a single as_of; forecast_runner loads a serialized model and writes a predictions parquet; quality_checks asserts invariants on the parquet. Each stage is a function with explicit inputs and outputs; no implicit shared state. The Typer CLI exposes each stage independently and composes them via the `chain` subcommand. The run_id is a deterministic UUID5 over (model_path, as_of_date, security_ids_hash, metric), so the same input always produces the same id and the same parquet path -- a precondition for the S14 prediction cache.
 
-**Source:** `fmf/pipeline/dataset_builder.py`, `fmf/pipeline/forecast_runner.py`, `fmf/pipeline/quality_checks.py`, `scripts/run_pipeline.py`. Decisions 1, 4, 5 in `plans/2026-06-07-s12-pipeline-chain.md`.
+**Source:** `fmf/pipeline/dataset_builder.py`, `fmf/pipeline/forecast_runner.py`, `fmf/pipeline/quality_checks.py`, `scripts/run_pipeline.py`. Decisions 1, 4, 5 of the S12 design.
 
 **Reproducer:**
 - `tests/pipeline/test_forecast_runner.py::test_run_id_deterministic_on_same_input`
@@ -287,7 +287,7 @@ The correct PIT semantic is field-level: for each field, the latest non-null val
 
 **Claim:** The backtester (S10) is research-shaped: it trains and evaluates over historical folds. The pipeline (S12) is production-shaped: it takes a trained model and runs inference at a single as_of. The two entries live in distinct namespaces (`fmf.equity.forecasting.evaluation` vs `fmf.pipeline`) and share zero state. The same model artifact (`LightGBMForecaster.save_model` / `.load_model`) is consumable from both. The separation prevents the silent coupling where a backtester change accidentally breaks production inference.
 
-**Source:** Backtester at `fmf/equity/forecasting/evaluation/backtester.py`; pipeline at `fmf/pipeline/`. Decision 2 in `plans/2026-06-07-s12-pipeline-chain.md`.
+**Source:** Backtester at `fmf/equity/forecasting/evaluation/backtester.py`; pipeline at `fmf/pipeline/`. Decision 2 of the S12 design.
 
 **Reproducer:**
 - `tests/equity/forecasting/models/test_lightgbm_model.py::test_save_load_round_trip_preserves_predictions` -- pins the artifact contract both entries rely on.
@@ -298,7 +298,7 @@ The correct PIT semantic is field-level: for each field, the latest non-null val
 
 **Claim:** S13 ships `fmf/research/fmf_runs.py`, a SQLite append-only registry at `reports/fmf_runs.db`. One row per run in `runs`, keyed by a deterministic UUID5 `run_id`. Config flags live in a normalised `run_config` k-v table sharing identical-config runs by `config_flags_hash` (SHA256 over the canonicalized config JSON). The backtester remains library-only and registry-unaware; write-through happens at the CLI boundary so backtester unit tests do not touch the registry. The `verify` subcommand re-hashes each run's config and flags drift, separately from the S14 prediction cache which will share the hash as a cache key.
 
-**Source:** `fmf/research/fmf_runs.py`. Decisions 1, 2, 3, 4, 6, 8 in `plans/2026-06-07-s13-run-registry.md`.
+**Source:** `fmf/research/fmf_runs.py`. Decisions 1, 2, 3, 4, 6, 8 of the S13 design.
 
 **Reproducer:**
 - `tests/research/test_fmf_runs.py::test_record_run_is_idempotent_returns_false`
@@ -312,7 +312,7 @@ The correct PIT semantic is field-level: for each field, the latest non-null val
 
 Wiring is all-or-nothing per fold. The orchestrator probes every test row's cache_key across all four model names (LightGBM, TiRex, NaiveLastYear, Ensemble) upfront. Full hit -> skip the compute path entirely. Any miss -> run the full S10 compute path unchanged, then write all entries back at fold end via batched commit. Mixed hit / miss never produces partial fits. The orthogonality test (`test_with_cache_predictions_match_without_cache`) asserts bit-for-bit prediction equality between with-cache and without-cache runs.
 
-**Source:** `fmf/equity/forecasting/evaluation/prediction_cache.py`. Decisions 1, 2, 3, 5, 7 in `plans/2026-06-07-s14-prediction-cache.md`.
+**Source:** `fmf/equity/forecasting/evaluation/prediction_cache.py`. Decisions 1, 2, 3, 5, 7 of the S14 design.
 
 **Reproducer:**
 - `tests/equity/forecasting/evaluation/test_backtester_invariants.py::test_cache_miss_when_data_fingerprint_changes` -- pins the data-axis invalidation.
@@ -327,7 +327,7 @@ Wiring is all-or-nothing per fold. The orchestrator probes every test row's cach
 
 Hand-calc tests on synthetic in-memory DuckDB rows are the rigor lever -- each composite has a textbook formula and a synthetic test that pins the formula explicitly. Fixture-DB anchor tests are secondary.
 
-**Source:** `fmf/features/composites/`, `scripts/run_cluster_win_gate.py`, `docs/specs/alternative_models.md`. Decisions 1, 2, 3, 6 in `plans/2026-06-07-s18-earnings-quality-cluster.md`.
+**Source:** `fmf/features/composites/`, `scripts/run_cluster_win_gate.py`, `docs/specs/alternative_models.md`. Decisions 1, 2, 3, 6 of the S18 design.
 
 **Reproducer:**
 - `tests/features/composites/test_piotroski.py::test_f_score_hand_calc_on_synthetic_rows`

@@ -1,4 +1,4 @@
-"""F1 four-cutoff fold generator. See plans/2026-06-07-s10-backtester.md."""
+"""F1 four-cutoff fold generator. See the S10 design."""
 
 from __future__ import annotations
 
