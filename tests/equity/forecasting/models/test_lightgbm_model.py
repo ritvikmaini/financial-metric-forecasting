@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -140,3 +142,25 @@ def test_feature_importance_gain_returns_strong_signal_first() -> None:
 def test_feature_importance_raises_when_not_fitted() -> None:
     with pytest.raises(RuntimeError, match="not fitted"):
         LightGBMForecaster(seed=42).feature_importance(importance_type="gain")
+
+
+def test_save_load_round_trip_preserves_predictions(tmp_path: Path) -> None:
+    rng = np.random.default_rng(0)
+    X = pd.DataFrame(rng.normal(size=(100, 4)), columns=list("abcd"))
+    y = 2.0 * X["a"].to_numpy() + rng.normal(scale=0.1, size=100)
+    m1 = LightGBMForecaster(seed=42).fit(X, y)
+    p1 = m1.predict(X)
+    m1.save_model(tmp_path / "lgbm")
+    m2 = LightGBMForecaster.load_model(tmp_path / "lgbm")
+    np.testing.assert_array_almost_equal(p1, m2.predict(X))
+    assert m2.feature_names() == m1.feature_names()
+
+
+def test_save_raises_when_unfitted(tmp_path: Path) -> None:
+    with pytest.raises(RuntimeError, match="not fitted"):
+        LightGBMForecaster(seed=42).save_model(tmp_path / "lgbm")
+
+
+def test_load_raises_on_missing_artifacts(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError, match="missing"):
+        LightGBMForecaster.load_model(tmp_path / "nonexistent")

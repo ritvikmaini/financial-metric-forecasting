@@ -28,6 +28,10 @@ reports/*
 !reports/figures/.gitkeep
 !reports/scoreboard_snapshots/
 !reports/scoreboard_snapshots/.gitkeep
+!reports/predictions/
+!reports/predictions/.gitkeep
+!reports/datasets/
+!reports/datasets/.gitkeep
 !reports/noise_floor.json
 !reports/coverage_audit.json
 !reports/feature_matrix.parquet

@@ -23,6 +23,7 @@ dev = [
     "pre-commit>=3.8.0",
     "nbstripout>=0.7.0",
     "pandas>=3.0.3",
+    "typer>=0.12.0",
 ]
 
 [build-system]
@@ -57,6 +58,13 @@ ignore = ["E501"]
 "tests/equity/forecasting/evaluation/test_backtester_e2e.py" = ["N803", "N806"]
 "tests/equity/forecasting/evaluation/test_feature_cap.py" = ["N803", "N806"]
 "tests/equity/forecasting/evaluation/test_target_lookup.py" = ["N806"]
+# Typer CLI conventionally puts typer.Option(...) in argument defaults.
+"scripts/run_pipeline.py" = ["B008"]
+# Pipeline forecast runner uses sklearn-style X for the feature matrix.
+"fmf/pipeline/forecast_runner.py" = ["N806"]
+# Pipeline tests use sklearn-style X for feature matrices.
+"tests/pipeline/test_forecast_runner.py" = ["N806"]
+"tests/pipeline/test_cli.py" = ["N806"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -95,8 +103,12 @@ module = [
     "fmf.equity.forecasting.models._simplex",
     "fmf.equity.forecasting.models.meta_learner",
     "fmf.equity.forecasting.evaluation.metrics",
+    "fmf.pipeline.dataset_builder",
+    "fmf.pipeline.forecast_runner",
+    "fmf.pipeline.quality_checks",
     "scripts.coverage_audit",
     "scripts.build_feature_matrix",
+    "scripts.run_pipeline",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true

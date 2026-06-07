@@ -267,3 +267,27 @@ The correct PIT semantic is field-level: for each field, the latest non-null val
 
 **Reproducer:**
 - `tests/equity/forecasting/evaluation/test_backtester_e2e.py::test_scoreboard_horizon_bucket_slicing` - asserts multi-index `(model, bucket)` shape and metric-column schema parity with aggregate.
+
+### L-INFRA-S12-001 - DAG-shaped pipeline pattern
+
+**Tag:** `[methodology, ported]`
+
+**Claim:** The S12 pipeline chain is three stages: dataset_builder produces an inference panel at a single as_of; forecast_runner loads a serialized model and writes a predictions parquet; quality_checks asserts invariants on the parquet. Each stage is a function with explicit inputs and outputs; no implicit shared state. The Typer CLI exposes each stage independently and composes them via the `chain` subcommand. The run_id is a deterministic UUID5 over (model_path, as_of_date, security_ids_hash, metric), so the same input always produces the same id and the same parquet path -- a precondition for the S14 prediction cache.
+
+**Source:** `fmf/pipeline/dataset_builder.py`, `fmf/pipeline/forecast_runner.py`, `fmf/pipeline/quality_checks.py`, `scripts/run_pipeline.py`. Decisions 1, 4, 5 in `plans/2026-06-07-s12-pipeline-chain.md`.
+
+**Reproducer:**
+- `tests/pipeline/test_forecast_runner.py::test_run_id_deterministic_on_same_input`
+- `tests/pipeline/test_dataset_builder.py::test_builder_routes_through_registry_path`
+
+
+### L-INFRA-S12-002 - Research entry vs production entry separation
+
+**Tag:** `[methodology, ported]`
+
+**Claim:** The backtester (S10) is research-shaped: it trains and evaluates over historical folds. The pipeline (S12) is production-shaped: it takes a trained model and runs inference at a single as_of. The two entries live in distinct namespaces (`fmf.equity.forecasting.evaluation` vs `fmf.pipeline`) and share zero state. The same model artifact (`LightGBMForecaster.save_model` / `.load_model`) is consumable from both. The separation prevents the silent coupling where a backtester change accidentally breaks production inference.
+
+**Source:** Backtester at `fmf/equity/forecasting/evaluation/backtester.py`; pipeline at `fmf/pipeline/`. Decision 2 in `plans/2026-06-07-s12-pipeline-chain.md`.
+
+**Reproducer:**
+- `tests/equity/forecasting/models/test_lightgbm_model.py::test_save_load_round_trip_preserves_predictions` -- pins the artifact contract both entries rely on.

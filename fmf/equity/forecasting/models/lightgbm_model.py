@@ -8,9 +8,12 @@ S10 backtester on public data.
 
 from __future__ import annotations
 
+import dataclasses
+import json
 import logging
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import lightgbm as lgb
@@ -157,3 +160,33 @@ class LightGBMForecaster:
         importances = self._model.feature_importance(importance_type=importance_type)
         pairs = sorted(zip(names, importances, strict=True), key=lambda p: -float(p[1]))
         return [(name, float(imp)) for name, imp in pairs]
+
+    def save_model(self, path: str | Path) -> None:
+        """Write LightGBM booster binary + sidecar JSON to a directory."""
+        if self._model is None or self._feature_names is None:
+            raise RuntimeError("model not fitted; call .fit() first")
+        p = Path(path)
+        p.mkdir(parents=True, exist_ok=True)
+        self._model.save_model(str(p / "booster.txt"))
+        sidecar = {
+            "feature_names": self._feature_names,
+            "seed": self.seed,
+            "hyperparameters": dataclasses.asdict(self.hyperparameters),
+        }
+        (p / "sidecar.json").write_text(json.dumps(sidecar, indent=2, sort_keys=True))
+
+    @classmethod
+    def load_model(cls, path: str | Path) -> LightGBMForecaster:
+        p = Path(path)
+        booster_path = p / "booster.txt"
+        sidecar_path = p / "sidecar.json"
+        if not booster_path.exists() or not sidecar_path.exists():
+            raise FileNotFoundError(
+                f"missing booster or sidecar under {p}; expected booster.txt and sidecar.json"
+            )
+        sidecar = json.loads(sidecar_path.read_text())
+        hp = LightGBMHyperparameters(**sidecar["hyperparameters"])
+        instance = cls(hyperparameters=hp, seed=sidecar["seed"])
+        instance._model = lgb.Booster(model_file=str(booster_path))
+        instance._feature_names = list(sidecar["feature_names"])
+        return instance

@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
-# fmf-public — placeholder reproducer.
+# fmf-public reproducer entry.
 #
-# The actual entry point lands in S11 (baseline) and gains a --pipeline
-# mode in S12 (production-shape pipeline chain). For now this script
-# exits with a clear message so a reviewer who clones the repo today
-# is not misled about what `--quick` runs.
+# Without arguments: prints a status note and exits 0.
+# With --pipeline: runs the S12 production pipeline chain end-to-end against
+# the fixture, building an inference dataset, scoring it through a saved
+# LightGBM model, and quality-checking the predictions parquet.
 
 set -euo pipefail
 
-echo "run_best.sh is a placeholder until S11 lands the baseline benchmark."
-echo "See README.md and docs/FORECASTING.md (when published) for status."
+if [[ "${1:-}" == "--pipeline" ]]; then
+    exec python scripts/run_pipeline.py chain \
+        --as-of 2024-05-15 \
+        --feature revenue_ttm \
+        --feature gross_margin \
+        --feature net_margin \
+        --model-path reports/models/lgbm_eps
+fi
+
+echo "run_best.sh: pass --pipeline to invoke the S12 pipeline chain."
+echo "Without arguments this script is a no-op; see README.md for status."
 exit 0
