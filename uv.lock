@@ -661,8 +661,8 @@ wheels = [
 ]
 
 [[package]]
-name = "fmf-public"
-version = "0.0.1"
+name = "financial-metric-forecasting"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "duckdb" },

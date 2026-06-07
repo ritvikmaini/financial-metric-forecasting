@@ -1,20 +1,23 @@
 cff-version: 1.2.0
-title: "fmf-public: Financial Metrics Forecasting on Public Data"
+title: "Financial Metric Forecasting"
 authors:
   - family-names: Maini
     given-names: Ritvik
-date-released: 2026-06-05
+date-released: 2026-06-07
 license: MIT
 keywords:
+  - "financial-metric forecasting"
   - "earnings forecasting"
-  - "ensemble methods"
+  - "point-in-time correctness"
+  - "leakage discipline"
   - "expanding-window backtest"
-  - "point-in-time fundamentals"
   - "SEC EDGAR XBRL"
 abstract: >
-  Reproducible research repo applying an ensemble-forecasting methodology
-  (LightGBM + TiRex zero-shot + simplex-blender MetaLearner) to SEC EDGAR
-  fundamentals and yfinance prices. Methodology originally designed on
-  proprietary data; reproduced here on a public-data substrate with full
-  point-in-time correctness, noise-floor measurement, admission-gated
-  alternative models, and a falsification-friendly research apparatus.
+  Point-in-time, leakage-correct backtesting framework for financial-metric
+  forecasting on public data. An ensemble stack (LightGBM + TiRex zero-shot
+  + simplex-blended meta-learner) over a registry-routed PIT feature layer
+  and an expanding-window backtester whose correctness surface is enumerated
+  and locked by invariant tests. The differentiator is leakage discipline,
+  not model choice; methodology designed on proprietary data and reproduced
+  here on SEC EDGAR fundamentals plus yfinance prices with no proprietary
+  code or data reused.

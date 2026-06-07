@@ -1,6 +1,6 @@
 # FMF Learnings Ledger
 
-Empirical findings and ported methodology from the fmf-public project. Each entry captures either:
+Empirical findings and ported methodology from the Financial Metric Forecasting project. Each entry captures either:
 - A `[methodology, ported]` claim: data-independent methodology, inherited from the prior FMF work on proprietary data, valid as-is here.
 - A public-data-reproduced finding: a real number measured on the public-data substrate, with the configuration and commit hash that produced it.
 

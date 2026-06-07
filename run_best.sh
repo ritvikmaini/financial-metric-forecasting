@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fmf-public reproducer entry.
+# financial-metric-forecasting reproducer entry.
 #
 # Without arguments: prints a status note and exits 0.
 # With --pipeline: runs the S12 production pipeline chain end-to-end against

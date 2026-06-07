@@ -1,6 +1,8 @@
-# fmf-public
+# Financial Metric Forecasting
 
-Clean-room rebuild of a financial-metrics forecasting stack on public data. The differentiator is leakage discipline, not model choice.
+Point-in-time, leakage-correct backtesting for financial-metric forecasting, built entirely on public data. The differentiator is leakage discipline, not model choice.
+
+FMF in the Python package and in cross-references is the acronym of this title.
 
 ## What this is
 
@@ -45,8 +47,8 @@ Roadmap subsection: [docs/FORECASTING.md §6](docs/FORECASTING.md#6-roadmap-to-v
 ## Quickstart
 
 ```bash
-git clone https://github.com/<your-handle>/fmf-public.git
-cd fmf-public
+git clone https://github.com/ritvikmaini/financial-metric-forecasting.git
+cd financial-metric-forecasting
 uv sync --extra dev
 uv run --extra dev pytest -m "not slow"                  # invariant + unit suite
 uv run --extra dev pytest -m slow                        # backtester e2e + cache orthogonality

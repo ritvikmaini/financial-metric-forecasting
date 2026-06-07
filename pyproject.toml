@@ -1,7 +1,7 @@
 [project]
-name = "fmf-public"
-version = "0.0.1"
-description = "Financial Metrics Forecasting on public data (SEC EDGAR + yfinance). Methodology designed at Bavest, reproduced here on a public-data substrate."
+name = "financial-metric-forecasting"
+version = "1.0.0"
+description = "Point-in-time, leakage-correct backtesting for financial-metric forecasting, built entirely on public data (SEC EDGAR + yfinance). Methodology designed at Bavest, reproduced here on a public-data substrate."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
