@@ -333,3 +333,37 @@ Hand-calc tests on synthetic in-memory DuckDB rows are the rigor lever -- each c
 - `tests/features/composites/test_piotroski.py::test_f_score_hand_calc_on_synthetic_rows`
 - `python scripts/run_cluster_win_gate.py` (writes a new verdict row)
 - `tests/features/composites/test_cluster_registration.py::test_cluster_features_marked_experimental`
+
+### L-INFRA-S22-001 - TiRex methodological fix and libomp interop workaround
+
+**Tag:** [methodology, ported] (input alignment with spec line 278) + [public-data finding] (Apple Silicon libomp deadlock).
+
+**Claim:** The S7 TiRex backend wrapper was wired into the S10 orchestrator's `_tirex_for_row` with the daily close-price series as input and `horizon=4`. Spec line 278 specifies `MIN_CONTEXT_LENGTH=12, horizon=4 for annual`, which reads as a quarterly EPS context (12 quarters = 3 years minimum) with a 4-quarter horizon to produce an annual lookahead. The price-fed implementation produced price-scale predictions that did not correlate with the EPS target; the smoke run before the fix showed TiRex MedAPE ~ 23.5 (a clear scale-mismatch artifact). S22 replaces the price fetch with `fetch_pit_series(... table='income_statement')` filtered to `period IN ('Q1','Q2','Q3','Q4')`, sorted by `end_date`, taking `eps_diluted`. The four quarterly median predictions are summed to produce the annual EPS estimate. CACHE_VERSION was bumped from 1 to 2 because the prediction function changed, ensuring price-fed v1 cache entries cannot be served for v2 requests; this is exactly the use case `CACHE_VERSION` was added to guard at L-EVAL-S14-001.
+
+The Apple Silicon libomp note: LightGBM and PyTorch (loaded by tirex-ts) both link `libomp.dylib`. Running both in the same process can deadlock at OpenMP barriers; observed pattern is 0% CPU with all threads pinned at `__kmp_hyper_barrier_release` after the first LightGBM `fit` and the first TiRex `forecast` race against each other. Workaround: `OMP_NUM_THREADS=1` env var plus `torch.set_num_threads(1)` before importing the orchestrator. The headline reproducer script applies both at module load. The fixture TiRex backend does not import torch and is unaffected, so the test suite is hermetic and unaffected. `IDEA-S22-002` files subprocess isolation as the longer-term fix.
+
+**Source:** `fmf/equity/forecasting/evaluation/backtester.py::_tirex_for_row` (quarterly EPS feed); `fmf/equity/forecasting/models/tirex_model.py::TirexHuggingFaceBackend` (docstring with the libomp note + the tirex-ts API call); `fmf/equity/forecasting/evaluation/prediction_cache.py::CACHE_VERSION` (bumped to 2); `scripts/run_headline_scoreboard.py` (reproducer with the OMP guards applied).
+
+**Reproducer:**
+- `tests/equity/forecasting/evaluation/test_prediction_cache.py::test_derive_cache_key_changes_on_version_bump` - pins the version-axis invalidation that this S22 change exercises.
+- `uv sync --extra tirex && uv run python scripts/run_headline_scoreboard.py` - end-to-end reproducer for the §4 headline numbers in `docs/FORECASTING.md`.
+
+
+### L-EVAL-S22-001 - Headline scoreboard finding: TiRex beats Naive; LightGBM does not; Ensemble wins the short-horizon bucket
+
+**Tag:** [public-data finding].
+
+**Claim:** On the 9-ticker fixture (8 scored; HSY excluded by the `eps_diluted` tag gap), evaluated under the F1 four-cutoff grid with test window 2020-2023, 392 scored rows, real TiRex via tirex-ts on CPU:
+
+- TiRex aggregate MedAPE = 0.158, NaiveLastYear MedAPE = 0.180, Ensemble MedAPE = 0.190, LightGBM MedAPE = 0.314, AR(1) MedAPE = 0.323.
+- TiRex directional accuracy = 0.788 vs Naive's 0.000 (Naive's DA is 0 by construction since pred = prior actual yields zero signed change).
+- Strongest cell in the table: Ensemble short-horizon (<=200d) MedAPE = 0.126.
+- TiRex long-bucket MAPE = 2.79 (a few wild outliers from SNOW 728-day filing-gap cases) but MedAPE stays at 0.158. The bucket slice exists precisely to surface this asymmetry; aggregate MAPE alone would mislead.
+- LightGBM under-performs NaiveLastYear on MedAPE (0.314 vs 0.180) on this universe. This is the honest difficulty of the problem: annual EPS for stable-fundamentals tickers is highly persistent, so the naive baseline is genuinely strong, and 8 scored tickers is too small a cross-section for a tree model to learn signal that generalises past naive persistence. A model that beat naive by a wide margin on this fixture would be more suspicious than reassuring. Resolution path: `IDEA-S18-001` (cross-section expansion) followed by S15 (per-cell noise floor sigma).
+
+The naive baselines (RandomWalk, SeasonalNaive, NaiveLastYear) collapse to identical MedAPE 0.1797 because they are mathematically the same predictor for an annual target with `season_length=1`. They ship as distinct scoreboard rows for spec narrative parity (`L-EVAL-S11-001`).
+
+**Source:** `reports/headline_scoreboard.json` (committed by the S22 commit, regeneratable via `scripts/run_headline_scoreboard.py`). `docs/FORECASTING.md` §4 carries the table.
+
+**Reproducer:**
+- `uv sync --extra tirex && uv run python scripts/run_headline_scoreboard.py` - writes `reports/headline_scoreboard.json` with the commit SHA stamped in.

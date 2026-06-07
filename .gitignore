@@ -35,6 +35,7 @@ reports/*
 !reports/noise_floor.json
 !reports/coverage_audit.json
 !reports/feature_matrix.parquet
+!reports/headline_scoreboard.json
 
 # Editor
 .idea/

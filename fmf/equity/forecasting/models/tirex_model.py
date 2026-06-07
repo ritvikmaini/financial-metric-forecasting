@@ -25,7 +25,6 @@ from typing import Protocol
 import numpy as np
 
 from fmf.equity.forecasting.models._tirex_preprocessing import (
-    QUANTILE_LEVELS,
     ROBUST_OUTLIER_CAP_DEFAULT,
     winsorize_mad,
 )
@@ -79,7 +78,14 @@ class TirexFixtureBackend:
 
 @dataclass
 class TirexHuggingFaceBackend:
-    """Live HuggingFace TiRex backend. Loaded lazily on first call."""
+    """Live HuggingFace TiRex backend. Loaded lazily on first call.
+
+    Apple Silicon note: LightGBM and PyTorch both link libomp.dylib; running
+    both in the same process can deadlock at OpenMP barriers. Set
+    OMP_NUM_THREADS=1 and call torch.set_num_threads(1) before instantiating
+    the backend, or run TiRex inference in a subprocess. The fixture backend
+    is unaffected since it does not import torch.
+    """
 
     model_name: str = TIREX_MODEL_NAME
     device: str | None = None  # "cpu", "cuda", "mps", or None for auto.
@@ -91,18 +97,21 @@ class TirexHuggingFaceBackend:
                 from tirex import load_model
             except ImportError as e:
                 raise ImportError(
-                    "tirex package not installed; install via "
-                    "`uv pip install tirex` for live forecasting"
+                    "tirex-ts package not installed; install via "
+                    "`uv pip install tirex-ts` for live forecasting"
                 ) from e
             self._model = load_model(self.model_name, device=self.device)
-        # The tirex API: predict(context, prediction_length, quantile_levels)
-        # Returns per-horizon quantile predictions at the requested levels.
-        result = self._model.predict(  # type: ignore[attr-defined]
-            context=series.tolist(),
+        # tirex-ts >= 1.4.1 API: forecast(context, prediction_length) returns
+        # (quantiles, mean) where quantiles has shape (B, H, 9) at the default
+        # 0.1..0.9 quantile grid that matches QUANTILE_LEVELS.
+        import torch
+
+        ctx = torch.from_numpy(np.asarray(series, dtype=np.float32)).unsqueeze(0)
+        quantiles, _mean = self._model.forecast(  # type: ignore[attr-defined]
+            context=ctx,
             prediction_length=horizon,
-            quantile_levels=list(QUANTILE_LEVELS),
         )
-        return np.asarray(result.quantiles, dtype=np.float64)
+        return np.asarray(quantiles[0].detach().cpu().numpy(), dtype=np.float64)
 
 
 @dataclass

@@ -49,7 +49,7 @@ from fmf.features.as_of_grid import (
 )
 from fmf.features.builtin_features import BUILTIN_REGISTRY
 from fmf.features.feature_registry import FeatureRegistry, compute_feature_matrix
-from fmf.features.point_in_time import fetch_consensus_pit, fetch_prices_pit
+from fmf.features.point_in_time import fetch_consensus_pit, fetch_pit_series
 
 log = logging.getLogger(__name__)
 
@@ -442,22 +442,29 @@ class ExpandingWindowBacktester:
     def _tirex_for_row(self, row: pd.Series) -> float:
         if self._tirex is None:
             return float("nan")
-        prices = fetch_prices_pit(
+        # Spec line 278: quarterly EPS context, MIN_CONTEXT_LENGTH=12 quarters,
+        # horizon=4 quarters for annual lookahead. Aggregate the four
+        # quarterly median predictions to align with the next-FY target.
+        is_df = fetch_pit_series(
             conn=self._conn,
             security_id=row["security_id"],
             as_of_date=row["as_of_date"],
+            table="income_statement",
         )
-        if prices.empty or "close" not in prices.columns:
+        if is_df.empty or "period" not in is_df.columns or "eps_diluted" not in is_df.columns:
             return float("nan")
-        series = prices["close"].to_numpy(dtype=np.float64)
-        if int(np.count_nonzero(~np.isnan(series))) < 12:
+        q_df = is_df[is_df["period"].isin(["Q1", "Q2", "Q3", "Q4"])].sort_values("end_date")
+        series = q_df["eps_diluted"].to_numpy(dtype=np.float64)
+        series = series[~np.isnan(series)]
+        if len(series) < 12:
             return float("nan")
         try:
             out = self._tirex.predict(series, horizon=4)
         except Exception:
             return float("nan")
-        # QUANTILE_LEVELS = (0.1..0.9); index 4 is q=0.5 (median).
-        return float(out.quantiles[-1, 4])
+        # QUANTILE_LEVELS = (0.1..0.9); index 4 is q=0.5 (median). Sum the
+        # four quarterly median predictions to produce the annual estimate.
+        return float(np.sum(out.quantiles[:, 4]))
 
     def _fetch_yf_snapshot(self, row: pd.Series) -> float | None:
         df = fetch_consensus_pit(

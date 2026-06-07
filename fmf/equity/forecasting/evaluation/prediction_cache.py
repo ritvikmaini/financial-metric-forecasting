@@ -23,7 +23,10 @@ import duckdb
 
 log = logging.getLogger(__name__)
 
-CACHE_VERSION = 1
+CACHE_VERSION = 2
+# v2: TiRex input changed from daily prices to quarterly eps_diluted series
+# (spec line 278 alignment). Price-fed cache entries from v1 must not be
+# served for v2 requests; this is the exact use case CACHE_VERSION guards.
 
 
 def data_fingerprint(conn: duckdb.DuckDBPyConnection, security_id: uuid.UUID) -> str:

@@ -25,6 +25,12 @@ dev = [
     "pandas>=3.0.3",
     "typer>=0.12.0",
 ]
+# Live TiRex inference (NX-AI/TiRex via HuggingFace). Heavy: pulls torch.
+# Install via `uv sync --extra tirex` for the headline reproducer.
+# Tests use the in-process fixture backend and do not require this extra.
+tirex = [
+    "tirex-ts>=1.4.0",
+]
 
 [project.scripts]
 fmf-runs = "scripts.fmf_runs_cli:app"
