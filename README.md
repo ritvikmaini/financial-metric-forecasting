@@ -16,6 +16,21 @@ Three highlights, in order of how much they tell a reader about the project:
 
 The two specific catches are instances of the same method, which is what the first highlight names. A reviewer skimming the repo is evaluating that method, not the saves themselves.
 
+## EDA
+
+One result needs no clicking to see: **two independent paths reach the same baseline.** Notebook 1 measures naive-last-year MedAPE = **0.178** on the full annual history of the fixture (the EDA path, universe-wide, using the same near-zero APE filter the metrics module ships). The headline backtester in [docs/FORECASTING.md §4](docs/FORECASTING.md#4-what-v10-validates) measures naive MedAPE = **0.180** on the 2020-2023 PIT-correct evaluation window. Two paths, one number. That is the load-bearing evidence behind §5a's "naive is genuinely strong on this universe, that is why LightGBM does not trivially beat it" -- not assumed, measured twice. The persistence story behind it is more nuanced than "highly persistent": EBIT pooled lag-1 rho = 0.976 across 125 (security, year) pairs, but EPS is only 0.642 across 117 pairs, with structural breaks where corporate actions intervene (the GOOGL 20-for-1 split of July 2022 is annotated on the scatter).
+
+<p align="center">
+<img src="docs/eda/figures/01_naive_medape.png" width="44%" alt="Naive-last-year MedAPE per metric: 0.178 on EPS, 0.130 on EBIT, the floor a model must clear">
+<img src="docs/eda/figures/01_lag1_scatter.png" width="54%" alt="Lag-1 EPS pooled rho 0.642 versus EBIT pooled rho 0.976; GOOGL 20-for-1 split annotated on the EPS panel">
+</p>
+
+Depth in the three rendered notebooks (Jupyter outputs viewable inline on GitHub):
+
+- [`docs/eda/01_targets_and_persistence.ipynb`](docs/eda/01_targets_and_persistence.ipynb) - keystone: persistence per metric, naive baseline cross-validation, pre/post-COVID regime sensitivity. Includes a cell that walks the backtester's `next_fy_target` and `last_fy_actual` lookups around the GOOGL split so EDA and headline trace to one source.
+- [`docs/eda/02_features.ipynb`](docs/eda/02_features.ipynb) - feature distributions across the universe and over 2018-2024, cross-feature correlation with one non-obvious finding, regime sensitivity on the feature side.
+- [`docs/eda/03_data_quality.ipynb`](docs/eda/03_data_quality.ipynb) - the bridge to the methodology doc. Walks the comparative-row trap on AAPL FY2023, the field-level coverage recovery on `total_assets`, the HSY EPS source-data tag gap, the SNOW history gap with the filing-latency distribution, and the GOOGL split end to end.
+
 ## What v1.0 does not do
 
 Four programs from the design are explicitly **not built** in v1.0 and shape how the headline scoreboard should be read:

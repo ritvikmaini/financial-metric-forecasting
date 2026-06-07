@@ -23,11 +23,13 @@ repos:
         language: system
         types: [python]
         pass_filenames: true
+        exclude: ^docs/eda/
       - id: ruff-format
         name: ruff-format
         entry: uv run ruff format
         language: system
         types: [python]
+        exclude: ^docs/eda/
         pass_filenames: true
 
   # Local mypy hook (not mirrors-mypy) so the hook and CI mypy run in the
@@ -54,10 +56,13 @@ repos:
     rev: 0.7.1
     hooks:
       - id: nbstripout
-        # Spec §7.5: exempt notebooks/eda/* and the two flagship notebooks
+        # Spec §7.5: exempt notebooks/eda/* and the two flagship notebooks.
+        # S21: docs/eda/*.ipynb is the published EDA series and must keep
+        # rendered outputs so GitHub viewers see figures inline.
         exclude: |
           (?x)^(
             notebooks/eda/.* |
             notebooks/dead_cv_bug\.ipynb |
-            notebooks/cv_leakage_falsification\.ipynb
+            notebooks/cv_leakage_falsification\.ipynb |
+            docs/eda/.*\.ipynb
           )$

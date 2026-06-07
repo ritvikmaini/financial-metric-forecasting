@@ -31,6 +31,16 @@ dev = [
 tirex = [
     "tirex-ts>=1.4.0",
 ]
+# EDA notebooks (docs/eda/*.ipynb). Install via `uv sync --extra eda`.
+eda = [
+    "matplotlib>=3.9",
+    "seaborn>=0.13",
+    "jupytext>=1.16",
+    "nbconvert>=7.16",
+    "nbformat>=5.10",
+    "ipykernel>=6.29",
+    "statsmodels>=0.14",
+]
 
 [project.scripts]
 fmf-runs = "scripts.fmf_runs_cli:app"
@@ -45,6 +55,10 @@ packages = ["fmf"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# EDA notebooks are demonstration code (jupytext-paired .py + executed .ipynb)
+# rather than production source; their style is loosened to keep narrative
+# flow.  Lint+format apply only to fmf/ tests/ scripts/.
+extend-exclude = ["docs/eda/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "W", "UP", "N", "SIM"]
